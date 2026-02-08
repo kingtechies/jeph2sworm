@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Build outputs
+dist/
+out/
+build/
+*.vsix
+
+# Vendor (cloned repos)
+vendor/
+
+# IDE
+.vscode/settings.json
+*.swp
+*.swo
+
+# Environment & secrets
+.env
+ai.env
+.jeph2sworm/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+*.egg-info/
+*.egg
+.eggs/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Chrome extension
+jeph2sworm-browser/dist/

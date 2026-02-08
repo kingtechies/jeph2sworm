@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jeph2sworm-core"
+version = "0.1.0"
+description = "Autonomous AI development swarm - multi-agent orchestration backend"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "kingtechies" },
+]
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "websockets>=13.0",
+    "litellm>=1.50.0",
+    "chromadb>=0.5.0",
+    "aiofiles>=24.1.0",
+    "structlog>=24.4.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "python-dotenv>=1.0.0",
+    "zxcvbn-python>=4.4.0",
+    "httpx>=0.27.0",
+    "pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+browser = [
+    "browser-use>=0.1.0",
+    "playwright>=1.48.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.7.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

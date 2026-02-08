@@ -1,0 +1,112 @@
+{
+  "name": "jeph2sworm",
+  "displayName": "Jeph2Sworm",
+  "description": "Autonomous AI Development Swarm - multi-agent system that builds complete applications",
+  "version": "0.1.0",
+  "publisher": "kingtechies",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "jeph2sworm",
+          "title": "Jeph2Sworm",
+          "icon": "assets/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "jeph2sworm": [
+        {
+          "type": "webview",
+          "id": "jeph2sworm.chatView",
+          "name": "Chat"
+        },
+        {
+          "id": "jeph2sworm.agentsView",
+          "name": "Agents"
+        },
+        {
+          "id": "jeph2sworm.tasksView",
+          "name": "Tasks"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "jeph2sworm.startSwarm",
+        "title": "Start Swarm",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.stopSwarm",
+        "title": "Stop Swarm",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.newProject",
+        "title": "New Project",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.configureProvider",
+        "title": "Configure LLM Provider",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.showStatus",
+        "title": "Show Swarm Status",
+        "category": "Jeph2Sworm"
+      }
+    ],
+    "configuration": {
+      "title": "Jeph2Sworm",
+      "properties": {
+        "jeph2sworm.serverHost": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Backend server host"
+        },
+        "jeph2sworm.serverPort": {
+          "type": "number",
+          "default": 7777,
+          "description": "Backend server port"
+        },
+        "jeph2sworm.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start the backend server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "watch": "npm run build -- --watch",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
