@@ -6,7 +6,7 @@
  */
 
 import * as vscode from "vscode";
-import { SwarmClient } from "./client";
+import { SwarmClient, SwarmEvent } from "./client";
 import { ChatViewProvider } from "./views/chat-view";
 import { AgentsTreeProvider } from "./views/agents-tree";
 import { TasksTreeProvider } from "./views/tasks-tree";
@@ -140,7 +140,7 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         AiEnvViewerPanel.show(context.extensionUri);
         const credentials = await client.getCredentials();
-        const vars = credentials.map((cred) => ({
+        const vars = credentials.map((cred: { key_name: string; purpose?: string; value?: string }) => ({
           key: cred.key_name,
           maskedValue: cred.value
             ? cred.value.slice(0, 4) + "****" + cred.value.slice(-4)
@@ -228,7 +228,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Listen for events from backend
-  client.onEvent((event) => {
+  client.onEvent((event: SwarmEvent) => {
     agentsProvider.refresh();
     tasksProvider.refresh();
     chatProvider.onEvent(event);

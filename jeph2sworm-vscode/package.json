@@ -30,24 +30,29 @@
         {
           "type": "webview",
           "id": "jeph2sworm.chatView",
-          "name": "Chat"
+          "name": "Chat",
+          "icon": "$(comment-discussion)"
         },
         {
           "id": "jeph2sworm.agentsView",
-          "name": "Agents"
+          "name": "Agents",
+          "icon": "$(organization)"
         },
         {
           "id": "jeph2sworm.tasksView",
-          "name": "Tasks"
+          "name": "Tasks",
+          "icon": "$(tasklist)"
         },
         {
           "type": "webview",
           "id": "jeph2sworm.eventFeed",
-          "name": "Event Feed"
+          "name": "Event Feed",
+          "icon": "$(pulse)"
         },
         {
           "id": "jeph2sworm.fileChanges",
-          "name": "File Changes"
+          "name": "File Changes",
+          "icon": "$(files)"
         }
       ]
     },
