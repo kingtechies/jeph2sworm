@@ -224,6 +224,12 @@ export function activate(context: vscode.ExtensionContext) {
         + `Database: ${projectConfig.database}`;
       await client.sendMessage(message);
       vscode.window.showInformationMessage(`Jeph2Sworm: Project "${projectConfig.name}" creation started!`);
+    }),
+
+    vscode.commands.registerCommand("jeph2sworm.rotateEnvVar", async (key: string) => {
+      if (!key) { return; }
+      client.send({ type: "command", command: "rotate_credential", key });
+      vscode.window.showInformationMessage(`Jeph2Sworm: Rotating ${key}...`);
     })
   );
 
@@ -232,6 +238,12 @@ export function activate(context: vscode.ExtensionContext) {
     agentsProvider.refresh();
     tasksProvider.refresh();
     chatProvider.onEvent(event);
+
+    // Periodically push full state to React webview so all tabs update
+    const et = event.type || event.event_type || "";
+    if (et === "AGENT_STATUS_CHANGED" || et === "TASK_COMPLETED" || et === "TASK_CREATED" || et === "PROGRESS_UPDATE") {
+      chatProvider.pushFullState();
+    }
 
     // Feed events to EventFeedProvider (adapt shape)
     eventFeedProvider.addEvent({

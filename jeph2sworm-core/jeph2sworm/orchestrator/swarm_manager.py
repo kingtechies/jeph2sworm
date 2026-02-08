@@ -26,6 +26,9 @@ from jeph2sworm.tools.file_system import FileSystem
 from jeph2sworm.tools.terminal import Terminal
 from jeph2sworm.orchestrator.task_scheduler import TaskScheduler
 from jeph2sworm.orchestrator.lifecycle import LifecycleManager
+from jeph2sworm.orchestrator.conflict_resolver import ConflictResolver
+from jeph2sworm.events.event_logger import EventLogger
+from jeph2sworm.browser.browser_use_bridge import BrowserUseBridge
 
 logger = structlog.get_logger()
 
@@ -63,10 +66,20 @@ class SwarmManager:
         self._running = False
         self.task_scheduler = TaskScheduler(self.brain)
         self.lifecycle = LifecycleManager()
+        self.conflict_resolver = ConflictResolver(self.brain, self.llm_router)
+        self.browser_bridge = BrowserUseBridge(self.llm_router)
+        self.event_logger = EventLogger(
+            log_dir=Path(self.settings.brain_dir) / "events"
+            if self.settings.brain_dir
+            else ".jeph2sworm/events"
+        )
 
         # Subscribe to events
         event_bus.subscribe(EventType.AGENT_ERROR, self._on_agent_error)
         event_bus.subscribe(EventType.AGENT_BLOCKED, self._on_agent_blocked)
+
+        # Wire event logger to receive all events
+        event_bus.subscribe_all(self._log_event)
 
     async def initialize(self) -> None:
         """Initialize the swarm - create all agents."""
@@ -261,6 +274,10 @@ class SwarmManager:
                 "message": f"Agent {agent_id} is blocked: {reason}",
             },
         )
+
+    async def _log_event(self, event: SwarmEvent) -> None:
+        """Forward all events to the event logger for persistence."""
+        self.event_logger.log(event)
 
     async def configure_llm_provider(
         self, provider: str, api_key: str, base_url: str | None = None, **kwargs

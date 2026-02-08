@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from jeph2sworm.events import EventType, SwarmEvent
+from jeph2sworm.events import EventType
 from jeph2sworm.events.event_bus import event_bus
 
 logger = structlog.get_logger()
@@ -48,11 +48,11 @@ class GitOps:
     async def init(self, initial_branch: str = "main") -> str:
         """Initialize a new git repository."""
         result = await self._run("init", "-b", initial_branch)
-        event_bus.emit(SwarmEvent(
-            type=EventType.SYSTEM_MESSAGE,
-            agent="git_ops",
+        await event_bus.emit(
+            EventType.SYSTEM_MESSAGE,
+            source="git_ops",
             data={"action": "init", "branch": initial_branch},
-        ))
+        )
         return result
 
     async def clone(self, url: str, target_dir: Optional[str] = None) -> str:
@@ -71,11 +71,11 @@ class GitOps:
     async def commit(self, message: str) -> str:
         """Create a commit."""
         result = await self._run("commit", "-m", message)
-        event_bus.emit(SwarmEvent(
-            type=EventType.SYSTEM_MESSAGE,
-            agent="git_ops",
+        await event_bus.emit(
+            EventType.SYSTEM_MESSAGE,
+            source="git_ops",
             data={"action": "commit", "message": message},
-        ))
+        )
         return result
 
     async def push(self, remote: str = "origin", branch: str = "main") -> str:

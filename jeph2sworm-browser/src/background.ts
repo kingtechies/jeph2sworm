@@ -140,9 +140,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   } else if (msg.type === "send_to_backend") {
     wsClient.send(msg.data);
     sendResponse({ ok: true });
-  } else if (msg.type === "get_status") {
-    sendResponse({ connected: wsClient.isConnected, pendingCommands: commandQueue.pendingCount });
-  } else if (msg.type === "capture_screenshot") {
+  } else if (msg.type === "get_status" || msg.type === "get_connection_status") {
+    sendResponse({ connected: wsClient.isConnected, pendingCommands: commandQueue.pendingCount, url: `${DEFAULT_WS_URL}/${clientId}` });
+  } else if (msg.type === "capture_screenshot" || msg.type === "take_screenshot") {
     commandQueue.enqueue("screenshot", {}).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
     return true; // async response
   } else if (msg.type === "content_action") {
@@ -150,6 +150,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       type: "browser_action",
       action: { type: msg.action, ...msg.data, url: msg.url },
     });
+    sendResponse({ ok: true });
+  } else if (msg.type === "start_recording") {
+    // Forward recording request — capture tab and record
+    chrome.tabs.captureVisibleTab().then((dataUrl) => {
+      wsClient.send({ type: "browser_action", action: { type: "recording_started", tabId: msg.tabId } });
+      broadcastToSidePanel({ type: "recording_status", data: { recording: true } });
+      sendResponse({ ok: true });
+    }).catch(() => sendResponse({ ok: false }));
+    return true;
+  } else if (msg.type === "stop_recording") {
+    wsClient.send({ type: "browser_action", action: { type: "recording_stopped", tabId: msg.tabId } });
+    broadcastToSidePanel({ type: "recording_status", data: { recording: false } });
     sendResponse({ ok: true });
   } else if (msg.type === "create_tab") {
     tabManager.createTab(msg.url, msg.purpose || "automation")
@@ -161,6 +173,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   } else if (msg.type === "get_managed_tabs") {
     sendResponse({ tabs: tabManager.getAllManaged() });
+  } else if (msg.type === "devtools_panel_shown" || msg.type === "devtools_panel_hidden") {
+    // Track devtools panel state
+    wsClient.send({ type: "browser_action", action: { type: msg.type } });
+    sendResponse({ ok: true });
+  } else if (msg.type === "network_request") {
+    // Forward network request data from devtools panel to backend
+    wsClient.send({ type: "browser_action", action: { type: "network_request", ...msg.data } });
+    sendResponse({ ok: true });
+  } else if (msg.type === "crop_screenshot") {
+    // Handle screenshot cropping for element captures
+    sendResponse({ ok: true, data: msg.data }); // Pass through — cropping done client-side
   }
   return true;
 });

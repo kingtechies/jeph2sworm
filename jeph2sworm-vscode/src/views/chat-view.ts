@@ -57,6 +57,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           break;
       }
     });
+
+    // Push initial state once the webview is ready
+    setTimeout(() => this.pushFullState(), 500);
   }
 
   onEvent(event: SwarmEvent): void {
@@ -81,6 +84,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       });
     }
 
+    // Forward agent status changes for AgentDashboard tab
+    if (eventType === "AGENT_STATUS_CHANGED" || eventType === "agent_status_changed") {
+      this.view.webview.postMessage({
+        type: "agent_status",
+        agent: event.source?.replace("-agent", "") || "",
+        status: (data.status as string) || "idle",
+        task: (data.current_task as string) || undefined,
+      });
+    }
+
+    // Forward task events for ProgressView tab
+    if (eventType === "TASK_COMPLETED" || eventType === "TASK_CREATED" ||
+        eventType === "TASK_ASSIGNED" || eventType === "TASK_STARTED") {
+      this.view.webview.postMessage({
+        type: "tasks_update",
+        tasks: (data.tasks as unknown[]) || [],
+      });
+    }
+
     // Forward status updates for the agents/progress tabs
     if (eventType === "status_update" || eventType === "initial_state") {
       this.view.webview.postMessage({
@@ -88,6 +110,45 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         status: data,
       });
     }
+  }
+
+  /**
+   * Fetches current status from backend and pushes full agent + progress
+   * state to the React webview. Called on initial resolve and periodically.
+   */
+  async pushFullState(): Promise<void> {
+    if (!this.view) { return; }
+    try {
+      const status = await this.client.getStatus() as Record<string, any>;
+      const agents = (status.agents || {}) as Record<string, any>;
+      const board = (status.brain_stats || {}) as Record<string, any>;
+
+      // Push agents list for AgentDashboard
+      const agentList = Object.values(agents).map((a: any) => ({
+        role: a.role || "",
+        status: a.status || "idle",
+        currentTask: a.current_task || undefined,
+        tasksCompleted: 0,
+      }));
+      if (agentList.length > 0) {
+        this.view.webview.postMessage({
+          type: "agents_update",
+          agents: agentList,
+        });
+      }
+
+      // Push progress for ProgressView
+      this.view.webview.postMessage({
+        type: "progress_update",
+        progress: {
+          phase: status.running ? "building" : "waiting",
+          tasksTotal: (board.tasks_backlog || 0) + (board.tasks_in_progress || 0) + (board.tasks_done || 0) + (board.tasks_blocked || 0),
+          tasksCompleted: board.tasks_done || 0,
+          tasksPending: board.tasks_backlog || 0,
+          tasksInProgress: board.tasks_in_progress || 0,
+        },
+      });
+    } catch { /* backend not available yet */ }
   }
 
   /**

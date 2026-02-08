@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { MessageBubble } from './MessageBubble';
+import { CodeBlock } from './CodeBlock';
 
 interface Message {
   id: string;
@@ -7,17 +9,6 @@ interface Message {
   content: string;
   timestamp: number;
 }
-
-const AGENT_COLORS: Record<string, string> = {
-  pm: '#4fc1ff',
-  brain: '#c586c0',
-  backend: '#dcdcaa',
-  frontend: '#9cdcfe',
-  ux: '#ce9178',
-  tester: '#4ec9b0',
-  devops: '#d7ba7d',
-  system: '#888',
-};
 
 export default function ChatPanel({ vscode }: { vscode: any }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -53,6 +44,18 @@ export default function ChatPanel({ vscode }: { vscode: any }) {
     setInput('');
   };
 
+  /** Split content into text and code blocks for rich rendering */
+  const renderContent = (content: string) => {
+    const parts = content.split(/(```[\s\S]*?```)/g);
+    return parts.map((part, i) => {
+      const codeMatch = part.match(/^```(\w*)\n?([\s\S]*?)```$/);
+      if (codeMatch) {
+        return <CodeBlock key={i} code={codeMatch[2].trim()} language={codeMatch[1] || 'text'} />;
+      }
+      return part ? <span key={i} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{part}</span> : null;
+    });
+  };
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div className="scrollable" style={{ flex: 1, padding: 8 }}>
@@ -63,17 +66,16 @@ export default function ChatPanel({ vscode }: { vscode: any }) {
           </div>
         )}
         {messages.map(m => (
-          <div key={m.id} style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 10, color: AGENT_COLORS[m.agent || 'system'] || '#888', fontWeight: 600, marginBottom: 2 }}>
-              {m.role === 'user' ? 'You' : m.agent?.toUpperCase() || 'SYSTEM'}
-            </div>
-            <div style={{
-              background: m.role === 'user' ? 'var(--vscode-input-background)' : 'var(--vscode-editor-inactiveSelectionBackground)',
-              padding: '6px 10px', borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            }}>
-              {m.content}
-            </div>
-          </div>
+          <MessageBubble
+            key={m.id}
+            sender={m.role === 'user' ? 'You' : (m.agent?.toUpperCase() || 'SYSTEM')}
+            senderRole={m.role === 'user' ? undefined : m.agent}
+            content=""
+            timestamp={m.timestamp}
+            isUser={m.role === 'user'}
+          >
+            {renderContent(m.content)}
+          </MessageBubble>
         ))}
         <div ref={bottomRef} />
       </div>

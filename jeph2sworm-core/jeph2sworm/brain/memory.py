@@ -238,6 +238,61 @@ class Brain:
     async def get_architecture(self) -> dict:
         return await self.read("architecture") or {}
 
+    async def update_architecture(self, updates: dict, agent_id: str = "system") -> None:
+        """Merge updates into the existing architecture section."""
+        arch = await self.get_architecture()
+        arch.update(updates)
+        await self.write("architecture", arch, agent_id)
+
+    async def update_api_contracts(self, contracts: Any, agent_id: str = "system") -> None:
+        """Replace or merge API contracts data into the brain."""
+        existing = await self.get_api_contracts()
+        if isinstance(contracts, str):
+            # LLM returned raw JSON string — try parsing
+            try:
+                contracts = json.loads(contracts)
+            except json.JSONDecodeError:
+                contracts = {"raw": contracts}
+        if isinstance(contracts, list):
+            existing["endpoints"] = contracts
+        elif isinstance(contracts, dict):
+            existing.update(contracts)
+        await self.write("api_contracts", existing, agent_id)
+
+    async def complete_task(
+        self, task_id: str, agent_id: str, result: str = ""
+    ) -> None:
+        """Mark a task as done and record the result."""
+        board = await self.read("task_board") or self._empty_board()
+        for col in self.BOARD_COLUMNS:
+            board.setdefault(col, [])
+        task = None
+        for status in self.BOARD_COLUMNS:
+            for t in board.get(status, []):
+                if t.get("id") == task_id:
+                    task = t
+                    board[status].remove(t)
+                    break
+            if task:
+                break
+        if task:
+            task["completed_at"] = datetime.now(timezone.utc).isoformat()
+            task["result"] = result
+            task["completed_by"] = agent_id
+            board["done"].append(task)
+            await self.write("task_board", board, agent_id)
+            await event_bus.emit(
+                EventType.TASK_COMPLETED,
+                source=agent_id,
+                data={"task_id": task_id, "result": result},
+            )
+
+    async def add_decision(
+        self, decision: str, rationale: str, agent_id: str = "system"
+    ) -> None:
+        """Add a decision to the decision log (alias for log_decision)."""
+        await self.log_decision(decision, rationale, agent_id)
+
     # ---- Task Board ----
 
     BOARD_COLUMNS = ("backlog", "assigned", "in_progress", "in_review", "done", "blocked")
@@ -383,12 +438,33 @@ class Brain:
 
     # ---- Test Results ----
 
-    async def add_test_result(self, result: dict, agent_id: str = "tester") -> None:
-        """Store a test run result."""
+    async def add_test_result(
+        self,
+        result: dict | None = None,
+        agent_id: str = "tester",
+        *,
+        test_name: str = "",
+        status: str = "",
+        details: str = "",
+        **kwargs: Any,
+    ) -> None:
+        """Store a test run result.
+
+        Accepts either a dict or keyword args (test_name, status, details).
+        """
+        if result is None:
+            result = {"test_name": test_name, "status": status, "details": details}
+            result.update(kwargs)
         results = await self.read("test_results") or []
         result.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
         results.append(result)
         await self.write("test_results", results, agent_id)
+
+        await event_bus.emit(
+            EventType.TEST_PASSED if result.get("status") == "passed" else EventType.TEST_FAILED,
+            source=agent_id,
+            data=result,
+        )
 
     async def get_test_results(self) -> list[dict]:
         return await self.read("test_results") or []

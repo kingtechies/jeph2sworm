@@ -111,20 +111,24 @@ class BrowserUseBridge:
 
         # Use LLM to compare
         comparison = await self.llm_router.complete(
-            prompt=(
-                f"Compare this web page with the design specification.\n\n"
-                f"Page HTML (truncated):\n{content[:3000]}\n\n"
-                f"Design spec:\n{design_spec}\n\n"
-                "List any discrepancies:\n"
-                "- Layout differences\n"
-                "- Color mismatches\n"
-                "- Typography issues\n"
-                "- Missing elements\n"
-                "- Extra elements\n\n"
-                'Output as JSON: {{"matches": true/false, "issues": [...]}}'
-            ),
-            provider="anthropic",
-            model="claude-sonnet-4-20250514",
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Compare this web page with the design specification.\n\n"
+                        f"Page HTML (truncated):\n{content[:3000]}\n\n"
+                        f"Design spec:\n{design_spec}\n\n"
+                        "List any discrepancies:\n"
+                        "- Layout differences\n"
+                        "- Color mismatches\n"
+                        "- Typography issues\n"
+                        "- Missing elements\n"
+                        "- Extra elements\n\n"
+                        'Output as JSON: {{"matches": true/false, "issues": [...]}}'
+                    ),
+                }
+            ],
+            task_type="analysis",
         )
 
         return {"url": url, "comparison": comparison}

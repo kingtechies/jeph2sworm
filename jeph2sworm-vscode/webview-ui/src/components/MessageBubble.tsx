@@ -11,6 +11,7 @@ interface MessageBubbleProps {
   content: string;
   timestamp?: number;
   isUser?: boolean;
+  children?: React.ReactNode;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -19,6 +20,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   content,
   timestamp,
   isUser = false,
+  children,
 }) => {
   return (
     <div
@@ -59,7 +61,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             </span>
           )}
         </div>
-        <div style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{content}</div>
+        <div style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{children || content}</div>
       </div>
     </div>
   );
