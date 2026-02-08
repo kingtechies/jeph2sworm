@@ -72,6 +72,7 @@ class BaseAgent(ABC):
         self._paused = False
         self._task: Optional[asyncio.Task] = None
         self._message_history: list[dict[str, str]] = []
+        self.context_manager = None  # Set by SwarmManager after creation
 
     @property
     @abstractmethod

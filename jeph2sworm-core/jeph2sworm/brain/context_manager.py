@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 from jeph2sworm.brain.memory import Brain
+from jeph2sworm.brain.vector_store import VectorStore
 
 logger = structlog.get_logger()
 
@@ -78,8 +79,9 @@ class ContextManager:
         ],
     }
 
-    def __init__(self, brain: Brain):
+    def __init__(self, brain: Brain, vector_store: Optional[VectorStore] = None):
         self.brain = brain
+        self.vector_store = vector_store
 
     def get_context(self, role: str, max_chars: int = MAX_CONTEXT_CHARS) -> dict:
         """
@@ -185,3 +187,111 @@ class ContextManager:
 
         # For now, return full context (future: track per-field versions)
         return self.get_context(role)
+
+    async def get_context_for_task(
+        self,
+        role: str,
+        task_description: str,
+        max_chars: int = MAX_CONTEXT_CHARS,
+    ) -> dict:
+        """
+        Get context for a specific task using RAG to find relevant code/docs.
+
+        Args:
+            role: The agent's role
+            task_description: What the agent is working on
+            max_chars: Maximum context size
+
+        Returns:
+            Context dict with role-specific sections plus RAG results
+        """
+        # Start with base context
+        context = self.get_context(role, max_chars=max_chars // 2)
+
+        # If vector store is available, add relevant code/docs
+        if self.vector_store:
+            rag_results = await self._query_relevant_context(role, task_description)
+            if rag_results:
+                context["relevant_code"] = rag_results.get("code", [])
+                context["relevant_errors"] = rag_results.get("errors", [])
+
+        return context
+
+    async def _query_relevant_context(
+        self,
+        role: str,
+        query: str,
+        n_results: int = 5,
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Query vector store for context relevant to the task."""
+        if not self.vector_store:
+            return {}
+
+        results: Dict[str, List[Dict[str, Any]]] = {}
+
+        # Search code chunks for developer roles
+        if role in ("backend", "frontend", "tester", "devops", "brain"):
+            try:
+                code_results = await self.vector_store.search_code(query, n_results)
+                results["code"] = [
+                    {
+                        "file": r.get("metadata", {}).get("filepath", "unknown"),
+                        "content": r.get("content", "")[:500],  # Truncate long chunks
+                    }
+                    for r in code_results
+                ]
+            except Exception as e:
+                logger.warning("vector_search_failed", collection="code", error=str(e))
+
+        # Search past errors for all roles
+        try:
+            error_results = await self.vector_store.search_errors(query, n_results=3)
+            results["errors"] = [
+                {
+                    "error": r.get("content", "")[:300],
+                    "solution": r.get("metadata", {}).get("solution", ""),
+                }
+                for r in error_results
+            ]
+        except Exception as e:
+            logger.warning("vector_search_failed", collection="errors", error=str(e))
+
+        return results
+
+    async def index_project_file(self, filepath: str, content: str) -> None:
+        """Index a project file for RAG retrieval."""
+        if not self.vector_store:
+            return
+
+        # Detect language from extension
+        lang_map = {
+            ".py": "python",
+            ".ts": "typescript",
+            ".tsx": "typescript",
+            ".js": "javascript",
+            ".jsx": "javascript",
+        }
+        ext = "." + filepath.split(".")[-1] if "." in filepath else ""
+        language = lang_map.get(ext, "unknown")
+
+        await self.vector_store.index_file(filepath, content, language)
+
+    async def index_error_solution(
+        self, error: str, solution: str, context: Optional[str] = None
+    ) -> None:
+        """Index an error and its solution for future retrieval."""
+        if not self.vector_store:
+            return
+
+        import hashlib
+        doc_id = hashlib.md5(error.encode()).hexdigest()[:16]
+
+        await self.vector_store.add_document(
+            collection="errors_and_solutions",
+            doc_id=f"error:{doc_id}",
+            content=error,
+            metadata={
+                "solution": solution,
+                "context": context or "",
+            },
+        )

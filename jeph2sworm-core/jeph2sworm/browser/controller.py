@@ -26,12 +26,17 @@ class BrowserController:
     - Page content extraction
     """
 
-    def __init__(self):
+    def __init__(self, llm: Any = None):
         self._browser = None
         self._agent = None
         self._context = None
         self._page = None
         self._initialized = False
+        self._llm = llm  # LLM instance for browser-use agent
+
+    def set_llm(self, llm: Any) -> None:
+        """Set or update the LLM instance used for browser tasks."""
+        self._llm = llm
 
     async def initialize(self) -> None:
         """Initialize the browser with browser-use."""
@@ -80,7 +85,7 @@ class BrowserController:
 
             agent = Agent(
                 task=f"Navigate to {url} and describe what you see",
-                llm=None,  # Will be set by bridge
+                llm=self._llm,
                 browser=self._browser,
             )
 
@@ -103,12 +108,15 @@ class BrowserController:
         if not self._initialized:
             await self.initialize()
 
+        # Use provided LLM or fall back to the controller's default LLM
+        task_llm = llm or self._llm
+
         try:
             from browser_use import Agent
 
             agent = Agent(
                 task=task,
-                llm=llm,
+                llm=task_llm,
                 browser=self._browser,
             )
 
@@ -175,7 +183,7 @@ class BrowserController:
 
             agent = Agent(
                 task=task,
-                llm=None,
+                llm=self._llm,
                 browser=self._browser,
             )
 

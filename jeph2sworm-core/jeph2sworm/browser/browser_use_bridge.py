@@ -27,13 +27,49 @@ class BrowserUseBridge:
     """
 
     def __init__(self, llm_router: LLMRouter):
-        self.controller = BrowserController()
         self.llm_router = llm_router
+        self._llm_instance = None
+        self.controller = BrowserController()
         self._task_history: list[dict] = []
 
     async def initialize(self) -> None:
-        """Initialize the browser bridge."""
+        """Initialize the browser bridge with LLM integration."""
+        # Create an LLM instance for browser-use
+        # browser-use expects a langchain-compatible LLM
+        self._llm_instance = await self._create_browser_llm()
+        self.controller.set_llm(self._llm_instance)
         await self.controller.initialize()
+
+    async def _create_browser_llm(self):
+        """Create an LLM instance compatible with browser-use."""
+        try:
+            # browser-use works with langchain LLMs
+            from langchain_openai import ChatOpenAI
+
+            # Get the primary provider and model from router
+            provider = self.llm_router.primary_provider
+            model = self.llm_router.select_model("browser")
+
+            # Map our provider names to langchain models
+            if provider in ("openai", "gpt-4"):
+                return ChatOpenAI(model=model, temperature=0)
+            elif provider == "anthropic":
+                from langchain_anthropic import ChatAnthropic
+                return ChatAnthropic(model=model, temperature=0)
+            else:
+                # Default to OpenAI-compatible endpoint via litellm proxy
+                # This works for most providers that support OpenAI format
+                return ChatOpenAI(
+                    model=f"litellm/{model}",
+                    temperature=0,
+                    base_url="http://localhost:4000",  # litellm proxy if running
+                )
+        except ImportError:
+            logger.warning(
+                "langchain not installed for browser-use LLM. "
+                "Install with: pip install langchain-openai langchain-anthropic"
+            )
+            return None
 
     async def close(self) -> None:
         """Close the browser bridge."""

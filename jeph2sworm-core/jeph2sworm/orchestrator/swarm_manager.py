@@ -17,6 +17,8 @@ from jeph2sworm.agents.ux_agent import UXAgent
 from jeph2sworm.agents.tester_agent import TesterAgent
 from jeph2sworm.agents.devops_agent import DevOpsAgent
 from jeph2sworm.brain.memory import Brain
+from jeph2sworm.brain.vector_store import VectorStore
+from jeph2sworm.brain.context_manager import ContextManager
 from jeph2sworm.config import Settings
 from jeph2sworm.events import EventType, SwarmEvent
 from jeph2sworm.events.event_bus import event_bus
@@ -74,6 +76,11 @@ class SwarmManager:
             else ".jeph2sworm/events"
         )
 
+        # Vector store for RAG-powered context
+        vector_store_dir = str(Path(self.settings.brain_dir) / "vectordb") if self.settings.brain_dir else ".jeph2sworm/vectordb"
+        self.vector_store = VectorStore(persist_dir=vector_store_dir)
+        self.context_manager = ContextManager(self.brain, self.vector_store)
+
         # Subscribe to events
         event_bus.subscribe(EventType.AGENT_ERROR, self._on_agent_error)
         event_bus.subscribe(EventType.AGENT_BLOCKED, self._on_agent_blocked)
@@ -88,10 +95,13 @@ class SwarmManager:
         # Load brain state
         await self.brain.load()
 
+        # Initialize vector store for RAG-powered context
+        await self.vector_store.initialize()
+
         # Store workspace path in brain
         self.brain.data["workspace_path"] = str(self.settings.workspace_dir or Path.cwd())
 
-        # Create all agents
+        # Create all agents with context manager
         workspace = Path(self.settings.workspace_dir) if self.settings.workspace_dir else Path.cwd()
         for role, agent_cls in AGENT_CLASSES.items():
             agent_id = f"{role.value}-agent"
@@ -103,6 +113,8 @@ class SwarmManager:
                 file_system=self.file_system,
                 terminal=self.terminal,
             )
+            # Give agents access to the context manager for RAG queries
+            agent.context_manager = self.context_manager
             self.agents[agent_id] = agent
             self.lifecycle.register_agent(agent)
             logger.info(f"Created agent: {agent_id}")
