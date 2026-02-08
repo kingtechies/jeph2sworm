@@ -29,10 +29,66 @@ class Brain:
     source of truth for the entire project.
     """
 
-    def __init__(self, brain_dir: Path) -> None:
-        self.brain_dir = brain_dir
+    def __init__(self, brain_dir: Path | str) -> None:
+        self.brain_dir = Path(brain_dir) if isinstance(brain_dir, str) else brain_dir
         self._lock = asyncio.Lock()
         self._cache: dict[str, Any] = {}
+
+    # ---- data property for backward compat ----
+
+    @property
+    def data(self) -> dict[str, Any]:
+        """Public accessor for cached brain data (sync, backward-compat)."""
+        return self._cache
+
+    # ---- load / save aliases ----
+
+    async def load(self) -> None:
+        """Load brain state from disk (alias for initialize)."""
+        await self.initialize()
+
+    async def save(self) -> None:
+        """Persist all cached brain data to disk (alias for backup)."""
+        for section, content in self._cache.items():
+            if section.startswith("_"):
+                continue
+            path = self.brain_dir / f"{section}.json"
+            await self._write_json(path, content)
+        await logger.ainfo("brain_saved", path=str(self.brain_dir))
+
+    # ---- Stats ----
+
+    def get_stats(self) -> dict:
+        """Return summary statistics about the brain state."""
+        board = self._cache.get("task_board", {})
+        return {
+            "sections": list(self._cache.keys()),
+            "tasks_backlog": len(board.get("backlog", [])),
+            "tasks_in_progress": len(board.get("in_progress", [])),
+            "tasks_done": len(board.get("done", [])),
+            "tasks_blocked": len(board.get("blocked", [])),
+            "agents": len(self._cache.get("agent_states", {})),
+            "errors": len(self._cache.get("errors_log", [])),
+            "decisions": len(self._cache.get("decisions_log", [])),
+            "test_runs": len(self._cache.get("test_results", [])),
+        }
+
+    # ---- Error shortcut ----
+
+    async def add_error(
+        self,
+        error: str,
+        file_path: str = "",
+        agent_id: str = "system",
+        details: str = "",
+        **kwargs,
+    ) -> None:
+        """Convenience method that delegates to log_error."""
+        await self.log_error(
+            error=error,
+            context=f"file={file_path} {details}".strip(),
+            fixed_by=agent_id,
+        )
 
     # ---- Initialization ----
 

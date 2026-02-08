@@ -151,19 +151,22 @@ async def brain_stats():
 @router.get("/brain/decisions")
 async def brain_decisions():
     manager = _get_manager()
-    return {"decisions": manager.brain.data.get("decisions_log", [])}
+    decisions = await manager.brain.read("decisions_log")
+    return {"decisions": decisions or []}
 
 
 @router.get("/brain/errors")
 async def brain_errors():
     manager = _get_manager()
-    return {"errors": manager.brain.data.get("errors_log", [])}
+    errors = await manager.brain.read("errors_log")
+    return {"errors": errors or []}
 
 
 @router.get("/brain/test-results")
 async def brain_test_results():
     manager = _get_manager()
-    return {"test_results": manager.brain.data.get("test_results", [])}
+    results = await manager.brain.read("test_results")
+    return {"test_results": results or []}
 
 
 # ── Config — Providers ─────────────────────────────────────────────
@@ -241,7 +244,7 @@ async def agent_logs(agent_id: str, limit: int = 100):
 async def test_results():
     """Get all test results across all runs."""
     manager = _get_manager()
-    results = manager.brain.data.get("test_results", [])
+    results = await manager.brain.read("test_results") or []
     return {
         "total_runs": len(results),
         "results": results,
@@ -252,7 +255,7 @@ async def test_results():
 async def test_evidence(run_number: int):
     """Get evidence (screenshots, logs) for a specific test run."""
     manager = _get_manager()
-    results = manager.brain.data.get("test_results", [])
+    results = await manager.brain.read("test_results") or []
     run = next((r for r in results if r.get("run_number") == run_number), None)
     if not run:
         raise HTTPException(status_code=404, detail=f"Test run {run_number} not found")
@@ -269,7 +272,7 @@ class RevealCredentialRequest(BaseModel):
 async def list_credentials():
     """List all credential keys (values masked)."""
     manager = _get_manager()
-    creds = manager.brain.data.get("credentials", [])
+    creds = await manager.brain.read("credentials") or []
     masked = [
         {
             "key_name": c.get("key_name", ""),
@@ -286,7 +289,7 @@ async def list_credentials():
 async def reveal_credential(req: RevealCredentialRequest):
     """Reveal the actual value of a credential."""
     manager = _get_manager()
-    creds = manager.brain.data.get("credentials", [])
+    creds = await manager.brain.read("credentials") or []
     cred = next((c for c in creds if c.get("key_name") == req.key_name), None)
     if not cred:
         raise HTTPException(status_code=404, detail=f"Credential '{req.key_name}' not found")
@@ -299,8 +302,5 @@ async def reveal_credential(req: RevealCredentialRequest):
 async def token_usage():
     """Get token usage statistics per agent and per provider."""
     manager = _get_manager()
-    usage = getattr(manager, "token_usage", {})
-    return {
-        "total_tokens": sum(v.get("total", 0) for v in usage.values()) if usage else 0,
-        "by_agent": usage,
-    }
+    usage = manager.llm_router.get_usage_summary()
+    return usage

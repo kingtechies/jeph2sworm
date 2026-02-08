@@ -22,6 +22,8 @@ export class SwarmClient {
   private eventHandlers: EventHandler[] = [];
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connected = false;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
 
   constructor(host: string, port: number) {
     this.host = host;
@@ -36,6 +38,7 @@ export class SwarmClient {
 
       this.ws.on("open", () => {
         this.connected = true;
+        this.reconnectAttempts = 0;
         resolve();
       });
 
@@ -75,6 +78,9 @@ export class SwarmClient {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
+    this.reconnectAttempts++;
+    const delay = Math.min(3000 * Math.pow(1.5, this.reconnectAttempts - 1), 30000);
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
       try {
@@ -82,7 +88,7 @@ export class SwarmClient {
       } catch {
         this.scheduleReconnect();
       }
-    }, 3000);
+    }, delay);
   }
 
   onEvent(handler: EventHandler): void {
@@ -94,43 +100,83 @@ export class SwarmClient {
   }
 
   async configureProvider(provider: string, apiKey: string): Promise<void> {
-    const res = await fetch(
-      `http://${this.host}:${this.port}/api/v1/llm/provider`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, api_key: apiKey }),
-      }
-    );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    try {
+      const res = await fetch(
+        `http://${this.host}:${this.port}/api/v1/llm/provider`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider, api_key: apiKey }),
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      console.error("Failed to configure provider:", err);
+      throw err;
+    }
   }
 
   async getStatus(): Promise<Record<string, unknown>> {
-    const res = await fetch(
-      `http://${this.host}:${this.port}/api/v1/status`
-    );
-    return res.json();
+    try {
+      const res = await fetch(
+        `http://${this.host}:${this.port}/api/v1/status`
+      );
+      return res.json();
+    } catch {
+      return { running: false, agents: {} };
+    }
   }
 
   async getAgents(): Promise<Array<{ role: string; status: string; current_task?: string }>> {
-    const res = await fetch(
-      `http://${this.host}:${this.port}/api/v1/agents`
-    );
-    return res.json();
+    try {
+      const res = await fetch(
+        `http://${this.host}:${this.port}/api/v1/agents`
+      );
+      const data = await res.json();
+      // Backend returns { agents: { "pm-agent": {...}, ... } } — convert to array
+      const agents = data.agents || {};
+      return Object.entries(agents).map(([id, info]: [string, any]) => ({
+        role: info.role,
+        status: info.status,
+        current_task: info.current_task,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   async getBrainSummary(): Promise<Record<string, unknown>> {
-    const res = await fetch(
-      `http://${this.host}:${this.port}/api/v1/brain/summary`
-    );
-    return res.json();
+    try {
+      const res = await fetch(
+        `http://${this.host}:${this.port}/api/v1/brain/stats`
+      );
+      return res.json();
+    } catch {
+      return {};
+    }
   }
 
   async getCredentials(): Promise<Array<{ key_name: string; purpose: string; value?: string }>> {
-    const res = await fetch(
-      `http://${this.host}:${this.port}/api/v1/credentials`
-    );
-    return res.json();
+    try {
+      const res = await fetch(
+        `http://${this.host}:${this.port}/api/v1/credentials`
+      );
+      const data = await res.json();
+      return data.credentials || [];
+    } catch {
+      return [];
+    }
+  }
+
+  async getTasks(): Promise<Record<string, unknown>> {
+    try {
+      const res = await fetch(
+        `http://${this.host}:${this.port}/api/v1/tasks`
+      );
+      return res.json();
+    } catch {
+      return { task_board: {} };
+    }
   }
 
   async exportReport(): Promise<Record<string, unknown>> {

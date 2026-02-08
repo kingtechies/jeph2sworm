@@ -22,17 +22,15 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TaskGroupItem 
   constructor(private client: SwarmClient) {}
 
   refresh(): void {
-    this.fetchTasks();
-    this._onDidChangeTreeData.fire(undefined);
+    this.fetchTasks().then(() => {
+      this._onDidChangeTreeData.fire(undefined);
+    });
   }
 
   private async fetchTasks(): Promise<void> {
     if (!this.client.isConnected) return;
     try {
-      const res = await fetch(
-        `http://${(this.client as any).host}:${(this.client as any).port}/api/v1/tasks`
-      );
-      const data = await res.json();
+      const data = await this.client.getTasks();
       this.taskBoard = data.task_board || {};
     } catch {
       // Ignore

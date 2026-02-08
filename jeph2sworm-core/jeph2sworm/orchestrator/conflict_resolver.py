@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 import structlog
 
 from jeph2sworm.brain.memory import Brain
-from jeph2sworm.events import EventType
+from jeph2sworm.events import EventType, SwarmEvent
 from jeph2sworm.events.event_bus import event_bus
 from jeph2sworm.llm.router import LLMRouter
 
@@ -122,44 +122,46 @@ class ConflictResolver:
 
     async def _resolve_api_mismatch(self, conflict: dict) -> dict:
         """Resolve an API contract mismatch using the Brain's contracts as truth."""
-        api_contracts = self.brain.data.get("architecture", {}).get("api_contracts", "")
+        arch = await self.brain.read("architecture") or {}
+        api_contracts = arch.get("api_contracts", "")
 
-        resolution = await self.llm_router.complete(
-            prompt=(
-                f"There is an API mismatch between backend and frontend.\n\n"
+        resolution = await self.llm_router.chat(
+            system_prompt="You are a conflict resolver for an API mismatch between backend and frontend.",
+            user_message=(
                 f"Official API contracts:\n{api_contracts}\n\n"
                 f"Conflict details:\n{json.dumps(conflict, indent=2)}\n\n"
                 "Which implementation matches the contract? "
-                "Output: {\"correct_agent\": \"...\", \"fix_needed_by\": \"...\", \"details\": \"...\"}"
+                "Output JSON: {\"correct_agent\": \"...\", \"fix_needed_by\": \"...\", \"details\": \"...\"}"
             ),
-            provider="anthropic",
-            model="claude-sonnet-4-20250514",
+            agent_id="conflict-resolver",
+            task_type="general",
         )
 
         return {"resolution": "api_contract_check", "details": resolution}
 
     async def _resolve_design_mismatch(self, conflict: dict) -> dict:
         """Resolve a design spec mismatch."""
-        design_system = self.brain.data.get("architecture", {}).get("design_system", "")
+        arch = await self.brain.read("architecture") or {}
+        design_system = arch.get("design_system", "")
 
-        resolution = await self.llm_router.complete(
-            prompt=(
-                f"Frontend implementation doesn't match UX design specs.\n\n"
+        resolution = await self.llm_router.chat(
+            system_prompt="You are a conflict resolver for a UX design mismatch.",
+            user_message=(
                 f"Design system:\n{design_system}\n\n"
                 f"Conflict:\n{json.dumps(conflict, indent=2)}\n\n"
                 "What needs to be fixed? "
-                "Output: {\"fix_agent\": \"frontend\", \"changes\": [...]}"
+                "Output JSON: {\"fix_agent\": \"frontend\", \"changes\": [...]}"
             ),
-            provider="anthropic",
-            model="claude-sonnet-4-20250514",
+            agent_id="conflict-resolver",
+            task_type="general",
         )
 
         return {"resolution": "design_check", "details": resolution}
 
-    async def _on_file_write(self, event: dict) -> None:
+    async def _on_file_write(self, event: SwarmEvent) -> None:
         """Track file writes from agents."""
-        source = event.get("source", "")
-        filepath = event.get("data", {}).get("path", "")
+        source = event.source
+        filepath = (event.data or {}).get("path", "")
         if filepath and source:
             self._file_locks[filepath] = source
 
@@ -167,7 +169,8 @@ class ConflictResolver:
         """Check if backend/frontend implementations match API contracts."""
         mismatches = []
 
-        contracts = self.brain.data.get("architecture", {}).get("api_contracts", "")
+        arch = await self.brain.read("architecture") or {}
+        contracts = arch.get("api_contracts", "")
         if not contracts:
             return mismatches
 

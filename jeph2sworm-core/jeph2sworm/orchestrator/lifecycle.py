@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 from jeph2sworm.agents.base_agent import AgentRole, AgentStatus, BaseAgent
-from jeph2sworm.events import EventType, SwarmEvent
+from jeph2sworm.events import EventType
 from jeph2sworm.events.event_bus import event_bus
 
 logger = structlog.get_logger()
@@ -91,9 +91,9 @@ class LifecycleManager:
         # Start health check loop
         self._health_task = asyncio.create_task(self._health_check_loop())
 
-        event_bus.emit(SwarmEvent(
-            type=EventType.SYSTEM_MESSAGE,
-            agent="lifecycle",
+        asyncio.ensure_future(event_bus.emit(
+            EventType.SYSTEM_MESSAGE,
+            source="lifecycle",
             data={"action": "all_started", "agents": list(self._agents.keys())},
         ))
 
@@ -135,9 +135,9 @@ class LifecycleManager:
         health.restarts += 1
         health.uptime_start = time.time()
 
-        event_bus.emit(SwarmEvent(
-            type=EventType.SYSTEM_MESSAGE,
-            agent="lifecycle",
+        asyncio.ensure_future(event_bus.emit(
+            EventType.SYSTEM_MESSAGE,
+            source="lifecycle",
             data={"action": "agent_restarted", "role": role, "restarts": health.restarts},
         ))
 

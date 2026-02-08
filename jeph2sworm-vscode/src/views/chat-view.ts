@@ -176,10 +176,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       messages.scrollTop = messages.scrollHeight;
     }
 
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
     function addEvent(type, source, data) {
       const div = document.createElement("div");
       div.className = "event";
-      div.innerHTML = '<span class="type">[' + type + ']</span> ' + source + ': ' + (data.message || JSON.stringify(data).substring(0, 100));
+      const typeSpan = document.createElement("span");
+      typeSpan.className = "type";
+      typeSpan.textContent = "[" + type + "]";
+      div.appendChild(typeSpan);
+      div.appendChild(document.createTextNode(" " + source + ": " + (data.message || JSON.stringify(data).substring(0, 100))));
       messages.appendChild(div);
       messages.scrollTop = messages.scrollHeight;
     }

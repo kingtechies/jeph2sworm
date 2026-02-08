@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import structlog
@@ -17,9 +18,9 @@ from jeph2sworm.agents.tester_agent import TesterAgent
 from jeph2sworm.agents.devops_agent import DevOpsAgent
 from jeph2sworm.brain.memory import Brain
 from jeph2sworm.config import Settings
-from jeph2sworm.events import EventType
+from jeph2sworm.events import EventType, SwarmEvent
 from jeph2sworm.events.event_bus import event_bus
-from jeph2sworm.llm.router import LLMRouter
+from jeph2sworm.llm.router import LLMRouter, PROVIDER_MODELS
 from jeph2sworm.security.rules_engine import RulesEngine
 
 logger = structlog.get_logger()
@@ -46,9 +47,10 @@ class SwarmManager:
 
     def __init__(self, settings: Optional[Settings] = None):
         self.settings = settings or Settings()
-        self.brain = Brain(brain_dir=self.settings.brain_dir)
+        self.brain = Brain(brain_dir=Path(self.settings.brain_dir) if not isinstance(self.settings.brain_dir, Path) else self.settings.brain_dir)
         self.llm_router = LLMRouter()
-        self.rules_engine = RulesEngine(workspace_root=self.settings.workspace_dir)
+        workspace = Path(self.settings.workspace_dir) if self.settings.workspace_dir else Path.cwd()
+        self.rules_engine = RulesEngine(workspace_root=workspace)
         self.agents: Dict[str, BaseAgent] = {}
         self._agent_tasks: Dict[str, asyncio.Task] = {}
         self._running = False
@@ -65,9 +67,10 @@ class SwarmManager:
         await self.brain.load()
 
         # Store workspace path in brain
-        self.brain.data["workspace_path"] = str(self.settings.workspace_dir)
+        self.brain.data["workspace_path"] = str(self.settings.workspace_dir or Path.cwd())
 
         # Create all agents
+        workspace = Path(self.settings.workspace_dir) if self.settings.workspace_dir else Path.cwd()
         for role, agent_cls in AGENT_CLASSES.items():
             agent_id = f"{role.value}-agent"
             agent = agent_cls(
@@ -75,7 +78,7 @@ class SwarmManager:
                 role=role,
                 brain=self.brain,
                 llm_router=self.llm_router,
-                workspace=self.settings.workspace_dir,
+                workspace=workspace,
             )
             self.agents[agent_id] = agent
             logger.info(f"Created agent: {agent_id}")
@@ -199,10 +202,10 @@ class SwarmManager:
             return True
         return False
 
-    async def _on_agent_error(self, event: dict) -> None:
+    async def _on_agent_error(self, event: SwarmEvent) -> None:
         """Handle agent error events."""
-        agent_id = event.get("source", "")
-        error = event.get("data", {}).get("error", "Unknown error")
+        agent_id = event.source
+        error = (event.data or {}).get("error", "Unknown error")
         logger.error(f"Agent error: {agent_id} - {error}")
 
         # Log to brain
@@ -210,13 +213,13 @@ class SwarmManager:
             error=error,
             file_path="",
             agent_id=agent_id,
-            details=str(event.get("data", {})),
+            details=str(event.data or {}),
         )
 
-    async def _on_agent_blocked(self, event: dict) -> None:
+    async def _on_agent_blocked(self, event: SwarmEvent) -> None:
         """Handle agent blocked events - try to resolve blockers."""
-        agent_id = event.get("source", "")
-        reason = event.get("data", {}).get("reason", "Unknown")
+        agent_id = event.source
+        reason = (event.data or {}).get("reason", "Unknown")
         logger.warning(f"Agent blocked: {agent_id} - {reason}")
 
         # Notify PM about blockers
@@ -233,13 +236,32 @@ class SwarmManager:
         self, provider: str, api_key: str, **kwargs
     ) -> None:
         """Configure an LLM provider with its API key."""
-        self.llm_router.configure_provider(provider, api_key, **kwargs)
+        self.llm_router.configure_provider(provider, api_key)
         logger.info(f"Configured LLM provider: {provider}")
 
     async def get_conversation_history(self) -> list:
         """Get the conversation history from the brain."""
-        return self.brain.data.get("conversation_history", [])
+        conv = await self.brain.read("conversation_history")
+        return (conv or {}).get("messages", [])
 
     async def get_task_board(self) -> dict:
         """Get the current task board state."""
-        return self.brain.data.get("task_board", {})
+        return await self.brain.read("task_board") or {}
+
+    async def list_llm_providers(self) -> list[dict]:
+        """List all LLM providers and their configuration status."""
+        providers = []
+        for name, models in PROVIDER_MODELS.items():
+            providers.append({
+                "name": name,
+                "configured": name in self.llm_router.api_keys,
+                "models": models,
+            })
+        return providers
+
+    async def get_agent_logs(self, agent_id: str, limit: int = 100) -> list[dict]:
+        """Get recent log entries for a specific agent."""
+        from jeph2sworm.events.event_bus import event_bus as _bus
+
+        events = _bus.get_event_log(source=agent_id, limit=limit)
+        return [e.to_ws_message() for e in events]

@@ -59,7 +59,7 @@ export function highlightByText(text: string, tag = '*'): HTMLElement | null {
   const els = document.querySelectorAll<HTMLElement>(tag);
   for (const el of els) {
     if (el.textContent?.trim().includes(text)) {
-      return highlightElement(`${el.tagName.toLowerCase}`, text);
+      return highlightElement(`${el.tagName.toLowerCase()}`, text);
     }
   }
   return null;

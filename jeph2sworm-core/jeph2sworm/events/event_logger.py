@@ -45,10 +45,10 @@ class EventLogger:
         """Log an event to memory and disk."""
         record = {
             "id": self._event_count,
-            "type": event.type.value if isinstance(event.type, EventType) else str(event.type),
-            "agent": event.agent,
+            "type": event.event.value if isinstance(event.event, EventType) else str(event.event),
+            "agent": event.source,
             "data": event.data,
-            "timestamp": event.timestamp if hasattr(event, "timestamp") else time.time(),
+            "timestamp": event.timestamp.isoformat() if hasattr(event.timestamp, 'isoformat') else str(event.timestamp),
         }
 
         # Add to in-memory buffer

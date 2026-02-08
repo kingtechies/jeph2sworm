@@ -16,7 +16,7 @@ let client: SwarmClient;
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration("jeph2sworm");
   const host = config.get<string>("serverHost", "127.0.0.1");
-  const port = config.get<number>("serverPort", 7777);
+  const port = config.get<number>("serverPort", 8765);
 
   // Create WebSocket client
   client = new SwarmClient(host, port);
@@ -82,33 +82,45 @@ export function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand("jeph2sworm.showStatus", async () => {
-      const status = await client.getStatus();
-      const channel = vscode.window.createOutputChannel("Jeph2Sworm Status");
-      channel.appendLine(JSON.stringify(status, null, 2));
-      channel.show();
+      try {
+        const status = await client.getStatus();
+        const channel = vscode.window.createOutputChannel("Jeph2Sworm Status");
+        channel.appendLine(JSON.stringify(status, null, 2));
+        channel.show();
+      } catch (err) {
+        vscode.window.showErrorMessage(`Jeph2Sworm: Failed to get status — ${err}`);
+      }
     }),
 
     // ---- Plan Section 4.3: Additional Commands ----
 
     vscode.commands.registerCommand("jeph2sworm.viewAgentActivity", async () => {
-      const agents = await client.getAgents();
-      const channel = vscode.window.createOutputChannel("Jeph2Sworm Agent Activity");
-      channel.clear();
-      for (const agent of agents) {
-        channel.appendLine(
-          `[${agent.role}] ${agent.status} — ${agent.current_task || "idle"}`
-        );
+      try {
+        const agents = await client.getAgents();
+        const channel = vscode.window.createOutputChannel("Jeph2Sworm Agent Activity");
+        channel.clear();
+        for (const agent of agents) {
+          channel.appendLine(
+            `[${agent.role}] ${agent.status} — ${agent.current_task || "idle"}`
+          );
+        }
+        channel.show();
+      } catch (err) {
+        vscode.window.showErrorMessage(`Jeph2Sworm: ${err}`);
       }
-      channel.show();
     }),
 
     vscode.commands.registerCommand("jeph2sworm.viewBrainMemory", async () => {
-      const brain = await client.getBrainSummary();
-      const doc = await vscode.workspace.openTextDocument({
-        content: JSON.stringify(brain, null, 2),
-        language: "json",
-      });
-      await vscode.window.showTextDocument(doc, { preview: true });
+      try {
+        const brain = await client.getBrainSummary();
+        const doc = await vscode.workspace.openTextDocument({
+          content: JSON.stringify(brain, null, 2),
+          language: "json",
+        });
+        await vscode.window.showTextDocument(doc, { preview: true });
+      } catch (err) {
+        vscode.window.showErrorMessage(`Jeph2Sworm: ${err}`);
+      }
     }),
 
     vscode.commands.registerCommand("jeph2sworm.pauseAgents", async () => {
@@ -122,18 +134,22 @@ export function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand("jeph2sworm.viewAiEnv", async () => {
-      const credentials = await client.getCredentials();
-      const channel = vscode.window.createOutputChannel("Jeph2Sworm ai.env");
-      channel.clear();
-      channel.appendLine("# ai.env — Managed by Jeph2Sworm");
-      channel.appendLine("# Values are masked. Use 'Reveal Credential' to see full values.\n");
-      for (const cred of credentials) {
-        const masked = cred.value
-          ? cred.value.slice(0, 4) + "****" + cred.value.slice(-4)
-          : "****";
-        channel.appendLine(`${cred.key_name}=${masked}  # ${cred.purpose}`);
+      try {
+        const credentials = await client.getCredentials();
+        const channel = vscode.window.createOutputChannel("Jeph2Sworm ai.env");
+        channel.clear();
+        channel.appendLine("# ai.env — Managed by Jeph2Sworm");
+        channel.appendLine("# Values are masked. Use 'Reveal Credential' to see full values.\n");
+        for (const cred of credentials) {
+          const masked = cred.value
+            ? cred.value.slice(0, 4) + "****" + cred.value.slice(-4)
+            : "****";
+          channel.appendLine(`${cred.key_name}=${masked}  # ${cred.purpose}`);
+        }
+        channel.show();
+      } catch (err) {
+        vscode.window.showErrorMessage(`Jeph2Sworm: ${err}`);
       }
-      channel.show();
     }),
 
     vscode.commands.registerCommand("jeph2sworm.runTests", async () => {

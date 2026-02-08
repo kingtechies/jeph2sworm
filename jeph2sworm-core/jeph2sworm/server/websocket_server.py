@@ -106,14 +106,14 @@ class ConnectionManager:
         for cid in disconnected:
             await self.disconnect(cid)
 
-    async def _broadcast_event(self, event: dict) -> None:
+    async def _broadcast_event(self, event: SwarmEvent) -> None:
         """Forward an event bus event to all WebSocket clients."""
         ws_message = {
             "type": "event",
-            "event_type": event.get("event_type", ""),
-            "source": event.get("source", ""),
-            "data": event.get("data", {}),
-            "timestamp": event.get("timestamp", ""),
+            "event_type": event.event.value,
+            "source": event.source,
+            "data": event.data or {},
+            "timestamp": event.timestamp.isoformat() if hasattr(event.timestamp, 'isoformat') else str(event.timestamp),
         }
         await self.broadcast(ws_message)
 

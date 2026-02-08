@@ -15,7 +15,7 @@ chrome.runtime.sendMessage({ type: 'get_status' }, (response) => {
 
 document.getElementById('btnConnect')!.addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: 'connect' }, (response) => {
-    if (response?.success) {
+    if (response?.ok) {
       statusDot.className = 'dot connected';
       statusText.textContent = 'Connected';
     }
@@ -38,7 +38,10 @@ document.getElementById('btnExtract')!.addEventListener('click', async () => {
   }
 });
 
-document.getElementById('btnPanel')!.addEventListener('click', () => {
-  chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT as number });
+document.getElementById('btnPanel')!.addEventListener('click', async () => {
+  const [win] = await chrome.windows.getAll({ populate: false });
+  if (win?.id) {
+    chrome.sidePanel.open({ windowId: win.id });
+  }
   window.close();
 });

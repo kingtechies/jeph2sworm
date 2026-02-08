@@ -87,6 +87,7 @@ class ContextManager:
 
         Returns a dict with only the sections relevant to that role,
         trimmed to fit within max_chars when serialized.
+        Uses brain.data (sync cached access) for speed.
         """
         sections = self.ROLE_CONTEXT_MAP.get(role, ["project_spec", "task_board"])
         context: Dict[str, Any] = {}

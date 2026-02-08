@@ -14,8 +14,9 @@ export class AgentsTreeProvider implements vscode.TreeDataProvider<AgentItem> {
   constructor(private client: SwarmClient) {}
 
   refresh(): void {
-    this.fetchAgents();
-    this._onDidChangeTreeData.fire(undefined);
+    this.fetchAgents().then(() => {
+      this._onDidChangeTreeData.fire(undefined);
+    });
   }
 
   private async fetchAgents(): Promise<void> {

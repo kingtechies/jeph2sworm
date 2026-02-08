@@ -5,7 +5,7 @@
  * to content scripts, and manages browser automation.
  */
 
-const DEFAULT_WS_URL = "ws://127.0.0.1:7777/ws";
+const DEFAULT_WS_URL = "ws://127.0.0.1:8765/ws";
 
 interface SwarmMessage {
   type: string;
@@ -16,6 +16,8 @@ interface SwarmMessage {
 let ws: WebSocket | null = null;
 let connected = false;
 let clientId = `browser-${Date.now()}`;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
 
 // ── WebSocket Connection ──────────────────────────────────────────
 
@@ -25,6 +27,7 @@ function connectToBackend(): void {
 
   ws.onopen = () => {
     connected = true;
+    reconnectAttempts = 0;
     console.log("[Jeph2Sworm] Connected to backend");
     broadcastToSidePanel({ type: "connection_status", data: { connected: true } });
   };
@@ -40,9 +43,14 @@ function connectToBackend(): void {
 
   ws.onclose = () => {
     connected = false;
-    console.log("[Jeph2Sworm] Disconnected. Reconnecting in 3s...");
+    console.log("[Jeph2Sworm] Disconnected.");
     broadcastToSidePanel({ type: "connection_status", data: { connected: false } });
-    setTimeout(connectToBackend, 3000);
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectAttempts++;
+      const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts - 1), 30000);
+      console.log(`[Jeph2Sworm] Reconnecting in ${Math.round(delay/1000)}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+      setTimeout(connectToBackend, delay);
+    }
   };
 
   ws.onerror = () => {
@@ -154,13 +162,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setOptions({ enabled: true });
 });
 
-chrome.action.onClicked.addListener(async (tab) => {
-  if (tab.id) {
-    await chrome.sidePanel.open({ tabId: tab.id });
-  }
-});
-
-// Listen for messages from side panel and content scripts
+// Listen for messages from side panel, popup, and content scripts
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "connect") {
     connectToBackend();
@@ -170,6 +172,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ ok: true });
   } else if (msg.type === "get_status") {
     sendResponse({ connected });
+  } else if (msg.type === "capture_screenshot") {
+    captureScreenshot().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+    return true; // async response
+  } else if (msg.type === "content_action") {
+    // Forward content script events to backend
+    sendToBackend({
+      type: "browser_action",
+      action: { type: msg.action, ...msg.data, url: msg.url },
+    });
+    sendResponse({ ok: true });
   }
   return true;
 });

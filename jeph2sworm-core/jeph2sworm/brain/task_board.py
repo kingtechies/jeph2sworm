@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from enum import Enum
@@ -93,9 +94,9 @@ class TaskBoard:
         if parent_id and parent_id in self._tasks:
             self._tasks[parent_id].subtasks.append(task.id)
 
-        event_bus.emit(SwarmEvent(
-            type=EventType.TASK_CREATED,
-            agent="task_board",
+        asyncio.ensure_future(event_bus.emit(
+            EventType.TASK_CREATED,
+            source="task_board",
             data=task.model_dump(),
         ))
 
@@ -112,9 +113,9 @@ class TaskBoard:
         task.status = TaskStatus.ASSIGNED
         task.updated_at = time.time()
 
-        event_bus.emit(SwarmEvent(
-            type=EventType.TASK_ASSIGNED,
-            agent="task_board",
+        asyncio.ensure_future(event_bus.emit(
+            EventType.TASK_ASSIGNED,
+            source="task_board",
             data={"task_id": task_id, "assigned_to": agent_role},
         ))
 
@@ -135,9 +136,9 @@ class TaskBoard:
         task.status = TaskStatus.IN_PROGRESS
         task.updated_at = time.time()
 
-        event_bus.emit(SwarmEvent(
-            type=EventType.TASK_STARTED,
-            agent=task.assigned_to or "task_board",
+        asyncio.ensure_future(event_bus.emit(
+            EventType.TASK_STARTED,
+            source=task.assigned_to or "task_board",
             data={"task_id": task_id},
         ))
 
@@ -155,9 +156,9 @@ class TaskBoard:
         if files_affected:
             task.files_affected = files_affected
 
-        event_bus.emit(SwarmEvent(
-            type=EventType.TASK_COMPLETED,
-            agent=task.assigned_to or "task_board",
+        asyncio.ensure_future(event_bus.emit(
+            EventType.TASK_COMPLETED,
+            source=task.assigned_to or "task_board",
             data={"task_id": task_id, "files_affected": task.files_affected},
         ))
 

@@ -124,7 +124,7 @@
         },
         "jeph2sworm.serverPort": {
           "type": "number",
-          "default": 7777,
+          "default": 8765,
           "description": "Backend server port"
         },
         "jeph2sworm.autoStart": {
@@ -177,6 +177,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "esbuild": "^0.20.0",

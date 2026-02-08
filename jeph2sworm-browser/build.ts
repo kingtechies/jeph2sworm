@@ -9,7 +9,7 @@ const isWatch = process.argv.includes('--watch');
 
 const commonOptions: BuildOptions = {
   bundle: true,
-  format: 'esm',
+  format: 'iife',
   target: 'chrome120',
   sourcemap: true,
   minify: !isWatch,

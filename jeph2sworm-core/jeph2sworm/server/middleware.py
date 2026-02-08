@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 import uuid
 
@@ -19,12 +20,7 @@ def setup_middleware(app: FastAPI) -> None:
     # CORS - allow VS Code extension and Chrome extension
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "vscode-webview://*",
-            "chrome-extension://*",
-            "http://localhost:*",
-            "http://127.0.0.1:*",
-        ],
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -81,7 +77,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 error=str(exc),
             )
             return Response(
-                content=f'{{"error": "{type(exc).__name__}", "detail": "{str(exc)}"}}',
+                content=json.dumps({"error": type(exc).__name__, "detail": str(exc)}),
                 status_code=500,
                 media_type="application/json",
             )
