@@ -28,16 +28,34 @@ class ConnectionManager:
         self._lock = asyncio.Lock()
 
         # Forward all events to connected clients
-        event_bus.subscribe(EventType.AGENT_MESSAGE, self._broadcast_event)
-        event_bus.subscribe(EventType.TASK_COMPLETED, self._broadcast_event)
-        event_bus.subscribe(EventType.TASK_CREATED, self._broadcast_event)
-        event_bus.subscribe(EventType.FILE_CREATED, self._broadcast_event)
-        event_bus.subscribe(EventType.FILE_MODIFIED, self._broadcast_event)
-        event_bus.subscribe(EventType.CODE_GENERATED, self._broadcast_event)
-        event_bus.subscribe(EventType.TEST_PASSED, self._broadcast_event)
-        event_bus.subscribe(EventType.TEST_FAILED, self._broadcast_event)
-        event_bus.subscribe(EventType.AGENT_ERROR, self._broadcast_event)
-        event_bus.subscribe(EventType.SYSTEM_READY, self._broadcast_event)
+        for event_type in [
+            EventType.AGENT_MESSAGE,
+            EventType.AGENT_STATUS_CHANGED,
+            EventType.AGENT_ERROR,
+            EventType.TASK_CREATED,
+            EventType.TASK_COMPLETED,
+            EventType.TASK_BLOCKED,
+            EventType.TASK_FAILED,
+            EventType.FILE_CREATED,
+            EventType.FILE_MODIFIED,
+            EventType.CODE_GENERATED,
+            EventType.TEST_PASSED,
+            EventType.TEST_FAILED,
+            EventType.TEST_RUN_COMPLETE,
+            EventType.BUG_REPORTED,
+            EventType.BUG_FIXED,
+            EventType.DEPLOY_STATUS,
+            EventType.DEPLOY_COMPLETE,
+            EventType.PROGRESS_UPDATE,
+            EventType.BUILD_COMPLETE,
+            EventType.ERROR_OCCURRED,
+            EventType.REQUEST_INPUT,
+            EventType.SCREENSHOT_CAPTURED,
+            EventType.RECORDING_READY,
+            EventType.SYSTEM_READY,
+            EventType.BROWSER_ACTION,
+        ]:
+            event_bus.subscribe(event_type, self._broadcast_event)
 
     async def connect(self, websocket: WebSocket, client_id: str, client_type: str = "vscode") -> None:
         """Accept a new WebSocket connection."""
@@ -150,17 +168,59 @@ async def _handle_ws_message(data: dict, client_id: str) -> None:
     if msg_type == "user_message":
         # Route user chat messages to swarm
         await event_bus.emit(
-            EventType.REQUEST_INPUT,
+            EventType.USER_MESSAGE,
             source=client_id,
             data={"message": data.get("message", ""), "from": client_id},
         )
 
+    elif msg_type == "start_project":
+        await event_bus.emit(
+            EventType.SESSION_STARTED,
+            source=client_id,
+            data=data.get("config", {}),
+        )
+
+    elif msg_type == "pause_agents":
+        await event_bus.emit(
+            EventType.AGENT_STATUS_CHANGED,
+            source=client_id,
+            data={"action": "pause_all"},
+        )
+
+    elif msg_type == "resume_agents":
+        await event_bus.emit(
+            EventType.AGENT_STATUS_CHANGED,
+            source=client_id,
+            data={"action": "resume_all"},
+        )
+
+    elif msg_type == "approve_plan":
+        await event_bus.emit(
+            EventType.DECISION_MADE,
+            source=client_id,
+            data={"decision": "plan_approved", **data.get("plan", {})},
+        )
+
+    elif msg_type == "modify_plan":
+        await event_bus.emit(
+            EventType.BRAIN_UPDATED,
+            source=client_id,
+            data={"modifications": data.get("modifications", {})},
+        )
+
     elif msg_type == "command":
-        # Handle commands from extension
+        # Handle generic commands from extension
         await event_bus.emit(
             EventType.SYSTEM_READY,
             source=client_id,
             data={"command": data.get("command", ""), "args": data.get("args", {})},
+        )
+
+    elif msg_type == "connect_browser":
+        await event_bus.emit(
+            EventType.BROWSER_CONNECTED,
+            source=client_id,
+            data={"browser_id": data.get("browser_id", client_id)},
         )
 
     elif msg_type == "browser_action":

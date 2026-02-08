@@ -72,6 +72,24 @@ class EventType(str, Enum):
     SCREENSHOT_CAPTURED = "screenshot_captured"
     RECORDING_READY = "recording_ready"
 
+    # Code events (additional)
+    CODE_GENERATED = "code_generated"
+    CODE_REVIEWED = "code_reviewed"
+
+    # Testing events (additional)
+    TEST_PASSED = "test_passed"
+    TEST_FAILED = "test_failed"
+
+    # Browser events
+    BROWSER_ACTION = "browser_action"
+    BROWSER_CONNECTED = "browser_connected"
+    BROWSER_DISCONNECTED = "browser_disconnected"
+
+    # System events (additional)
+    SYSTEM_READY = "system_ready"
+    SESSION_STARTED = "session_started"
+    SESSION_STOPPED = "session_stopped"
+
     # LLM events
     LLM_CALL_STARTED = "llm_call_started"
     LLM_CALL_COMPLETE = "llm_call_complete"
