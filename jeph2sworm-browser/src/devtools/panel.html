@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { font: 12px monospace; color: #d4d4d4; background: #1e1e1e; padding: 8px; margin: 0; }
+  .section { margin-bottom: 12px; }
+  .section-title { font-weight: bold; color: #4fc1ff; margin-bottom: 4px; text-transform: uppercase; font-size: 10px; }
+  .entry { padding: 2px 0; border-bottom: 1px solid #333; }
+  .entry.error { color: #f48771; }
+  .entry.warn { color: #cca700; }
+  .entry.info { color: #89d185; }
+  .metric { display: inline-block; margin-right: 16px; }
+  .metric .label { color: #888; }
+  .metric .value { color: #dcdcaa; font-weight: bold; }
+  #tabs { display: flex; gap: 0; border-bottom: 1px solid #555; margin-bottom: 8px; }
+  #tabs button { background: transparent; border: none; color: #888; padding: 6px 12px; cursor: pointer; }
+  #tabs button.active { color: #4fc1ff; border-bottom: 2px solid #4fc1ff; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+</style>
+</head>
+<body>
+  <div id="tabs">
+    <button class="active" data-tab="network">Network</button>
+    <button data-tab="console">Console</button>
+    <button data-tab="performance">Performance</button>
+  </div>
+
+  <div id="network" class="panel active">
+    <div class="section-title">Network Requests</div>
+    <div id="network-log"></div>
+  </div>
+
+  <div id="console" class="panel">
+    <div class="section-title">Console Output</div>
+    <div id="console-log"></div>
+  </div>
+
+  <div id="performance" class="panel">
+    <div class="section-title">Performance Metrics</div>
+    <div id="perf-metrics"></div>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  jeph2sworm:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: jeph2sworm-core
+    ports:
+      - "8000:8000"
+    volumes:
+      - workspace:/workspace
+      - brain-data:/app/.brain
+    environment:
+      - JEPH2SWORM_HOST=0.0.0.0
+      - JEPH2SWORM_PORT=8000
+      - JEPH2SWORM_WORKSPACE_DIR=/workspace
+      - JEPH2SWORM_BRAIN_DIR=/app/.brain
+    env_file:
+      - ../ai.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: jeph2sworm-chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    restart: unless-stopped
+
+volumes:
+  workspace:
+  brain-data:
+  chroma-data:

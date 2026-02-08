@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { width: 320px; font: 13px system-ui; color: #d4d4d4; background: #252526; padding: 12px; margin: 0; }
+  h1 { font-size: 16px; margin: 0 0 8px; color: #4fc1ff; }
+  .status { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 8px; background: #1e1e1e; border-radius: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.connected { background: #4ec9b0; }
+  .dot.disconnected { background: #f48771; }
+  .actions { display: grid; gap: 6px; }
+  .actions button { width: 100%; padding: 8px; background: #0e639c; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  .actions button:hover { background: #1177bb; }
+  .footer { margin-top: 12px; font-size: 10px; color: #666; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>🐝 jeph2sworm</h1>
+  <div class="status">
+    <span id="statusDot" class="dot disconnected"></span>
+    <span id="statusText">Disconnected</span>
+  </div>
+  <div class="actions">
+    <button id="btnConnect">Connect to Server</button>
+    <button id="btnCapture">Capture Page</button>
+    <button id="btnExtract">Extract DOM</button>
+    <button id="btnPanel">Open Side Panel</button>
+  </div>
+  <div class="footer">jeph2sworm browser extension v0.1.0</div>
+  <script src="popup.js"></script>
+</body>
+</html>
