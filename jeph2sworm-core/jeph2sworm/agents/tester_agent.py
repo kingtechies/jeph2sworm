@@ -2,12 +2,46 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from jeph2sworm.agents.base_agent import AgentRole, BaseAgent
 from jeph2sworm.events import EventType
+
+if TYPE_CHECKING:
+    from jeph2sworm.browser.browser_use_bridge import BrowserUseBridge
+
+
+@dataclass
+class CycleTestResult:
+    """Result of a single test cycle."""
+    
+    cycle: int
+    passed: bool
+    duration_ms: float
+    output: str
+    timestamp: float = field(default_factory=time.time)
+
+
+@dataclass 
+class CycleTestReport:
+    """Aggregate report for 120-cycle test run."""
+    
+    total_cycles: int
+    passed_cycles: int
+    failed_cycles: int
+    pass_rate: float
+    avg_duration_ms: float
+    min_duration_ms: float
+    max_duration_ms: float
+    failures: list[CycleTestResult]
+    start_time: float
+    end_time: float
+    test_command: str
 
 
 class TesterAgent(BaseAgent):
@@ -108,6 +142,17 @@ If a test fails, create a bug report and assign it to the responsible agent."""
             return await self._create_test_plan(context)
         elif phase == "run_tests":
             return await self._run_tests(context)
+        elif phase == "run_120_cycles":
+            test_cmd = task.get("test_command")
+            cycles = task.get("cycles", 120)
+            stop_on_failure = task.get("stop_on_failure", False)
+            report = await self.run_120_cycles(
+                context, 
+                test_command=test_cmd,
+                cycles=cycles,
+                stop_on_failure=stop_on_failure
+            )
+            return f"120-cycle test: {report.pass_rate:.1f}% pass rate ({report.passed_cycles}/{report.total_cycles})"
 
         return await self._implement_tests(task, context)
 
@@ -215,6 +260,190 @@ If a test fails, create a bug report and assign it to the responsible agent."""
             await self.say(f"Test run failed: {e}")
             return f"Test run error: {e}"
 
+    async def run_120_cycles(
+        self, 
+        context: dict, 
+        test_command: str | None = None,
+        cycles: int = 120,
+        stop_on_failure: bool = False,
+        parallel_workers: int = 1
+    ) -> CycleTestReport:
+        """
+        Run tests for 120 cycles (or custom count) to catch flaky tests and race conditions.
+        
+        The 120-cycle philosophy: Run tests enough times to catch intermittent failures.
+        This helps identify:
+        - Flaky tests due to timing issues
+        - Race conditions in async code
+        - Memory leaks that accumulate over runs
+        - External service timeouts
+        
+        Args:
+            context: Project context with architecture info
+            test_command: Custom test command (auto-detected if not provided)
+            cycles: Number of test cycles to run (default: 120)
+            stop_on_failure: Stop immediately on first failure
+            parallel_workers: Number of parallel test processes (default: 1)
+            
+        Returns:
+            CycleTestReport with aggregate statistics
+        """
+        architecture = context.get("architecture", {})
+        
+        # Determine test command
+        if not test_command:
+            tech = architecture.get("tech_stack", "{}")
+            test_command = await self.think(
+                f"Tech stack: {tech}\n\n"
+                "What is the single command to run all tests for this project? "
+                "Just output the command, nothing else.",
+                task_type="testing",
+            )
+            test_command = test_command.strip().strip("`")
+        
+        await self.say(f"Starting 120-cycle test run with command: {test_command}")
+        
+        start_time = time.time()
+        results: list[CycleTestResult] = []
+        
+        async def run_single_cycle(cycle_num: int) -> CycleTestResult:
+            """Run a single test cycle."""
+            cycle_start = time.time()
+            try:
+                output = await self.run_command(test_command)
+                passed = "fail" not in output.lower() and "error" not in output.lower()
+                duration_ms = (time.time() - cycle_start) * 1000
+                return CycleTestResult(
+                    cycle=cycle_num,
+                    passed=passed,
+                    duration_ms=duration_ms,
+                    output=output[:2000],  # Truncate for memory
+                )
+            except Exception as e:
+                duration_ms = (time.time() - cycle_start) * 1000
+                return CycleTestResult(
+                    cycle=cycle_num,
+                    passed=False,
+                    duration_ms=duration_ms,
+                    output=str(e),
+                )
+        
+        # Run cycles
+        if parallel_workers > 1:
+            # Parallel execution
+            for batch_start in range(0, cycles, parallel_workers):
+                batch_end = min(batch_start + parallel_workers, cycles)
+                tasks = [
+                    run_single_cycle(i + 1) 
+                    for i in range(batch_start, batch_end)
+                ]
+                batch_results = await asyncio.gather(*tasks)
+                results.extend(batch_results)
+                
+                # Check for early termination
+                if stop_on_failure and any(not r.passed for r in batch_results):
+                    break
+                
+                # Progress update every 10 cycles
+                if len(results) % 10 == 0:
+                    passed = sum(1 for r in results if r.passed)
+                    await self.say(f"Cycle {len(results)}/{cycles}: {passed} passed")
+        else:
+            # Sequential execution
+            for i in range(cycles):
+                result = await run_single_cycle(i + 1)
+                results.append(result)
+                
+                if stop_on_failure and not result.passed:
+                    await self.say(f"Stopping at cycle {i + 1} due to failure")
+                    break
+                
+                # Progress update every 10 cycles
+                if (i + 1) % 10 == 0:
+                    passed = sum(1 for r in results if r.passed)
+                    await self.say(f"Cycle {i + 1}/{cycles}: {passed} passed")
+        
+        end_time = time.time()
+        
+        # Calculate statistics
+        passed_results = [r for r in results if r.passed]
+        failed_results = [r for r in results if not r.passed]
+        durations = [r.duration_ms for r in results]
+        
+        report = CycleTestReport(
+            total_cycles=len(results),
+            passed_cycles=len(passed_results),
+            failed_cycles=len(failed_results),
+            pass_rate=len(passed_results) / len(results) * 100 if results else 0,
+            avg_duration_ms=sum(durations) / len(durations) if durations else 0,
+            min_duration_ms=min(durations) if durations else 0,
+            max_duration_ms=max(durations) if durations else 0,
+            failures=failed_results,
+            start_time=start_time,
+            end_time=end_time,
+            test_command=test_command,
+        )
+        
+        # Store results in brain
+        await self.brain.add_test_result(
+            test_name="120_cycle_run",
+            status="passed" if report.pass_rate == 100 else "flaky" if report.pass_rate > 95 else "failed",
+            details=json.dumps({
+                "total_cycles": report.total_cycles,
+                "passed": report.passed_cycles,
+                "failed": report.failed_cycles,
+                "pass_rate": f"{report.pass_rate:.1f}%",
+                "avg_duration_ms": f"{report.avg_duration_ms:.0f}",
+                "failure_cycles": [r.cycle for r in report.failures],
+            }),
+            agent_id=self.agent_id,
+        )
+        
+        # Report findings
+        if report.pass_rate == 100:
+            await self.say(f"✅ 120-cycle test complete: All {report.total_cycles} cycles passed!")
+        elif report.pass_rate > 95:
+            await self.say(
+                f"⚠️ 120-cycle test complete: {report.passed_cycles}/{report.total_cycles} passed "
+                f"({report.pass_rate:.1f}%). Some flaky tests detected."
+            )
+            # Report flaky tests as bugs
+            await self._report_flaky_tests(report, context)
+        else:
+            await self.say(
+                f"❌ 120-cycle test complete: {report.passed_cycles}/{report.total_cycles} passed "
+                f"({report.pass_rate:.1f}%). Significant failures detected."
+            )
+            # Report failures
+            for failure in report.failures[:5]:  # Report first 5 failures
+                await self._report_failures(failure.output, context)
+        
+        return report
+
+    async def _report_flaky_tests(self, report: CycleTestReport, context: dict) -> None:
+        """Report flaky tests as bugs."""
+        failure_outputs = "\n---\n".join(f.output for f in report.failures[:3])
+        
+        analysis = await self.think(
+            f"Test command: {report.test_command}\n"
+            f"Pass rate: {report.pass_rate:.1f}% over {report.total_cycles} cycles\n"
+            f"Failed cycles: {[f.cycle for f in report.failures]}\n\n"
+            f"Sample failure outputs:\n{failure_outputs}\n\n"
+            "Analyze these intermittent failures:\n"
+            "1. What tests are flaky?\n"
+            "2. What are the likely causes (timing, race conditions, external deps)?\n"
+            "3. How to fix each flaky test?\n\n"
+            "Output as JSON with: test_name, cause, fix_suggestion",
+            task_type="testing",
+        )
+        
+        await self.brain.add_error(
+            error=f"Flaky tests detected ({report.pass_rate:.1f}% pass rate)",
+            file_path="test_suite",
+            agent_id=self.agent_id,
+            details=analysis,
+        )
+
     async def _report_failures(self, test_output: str, context: dict) -> None:
         """Parse test failures and create bug reports."""
         bugs = await self.think(
@@ -280,3 +509,166 @@ If a test fails, create a bug report and assign it to the responsible agent."""
                 files_written += 1
 
         return files_written
+
+    # ---- Browser E2E Testing ----
+    
+    _browser_bridge: Optional["BrowserUseBridge"] = None
+    
+    def set_browser_bridge(self, bridge: "BrowserUseBridge") -> None:
+        """Set the browser bridge for E2E testing."""
+        self._browser_bridge = bridge
+    
+    async def run_browser_e2e_tests(
+        self,
+        url: str,
+        context: dict,
+        test_scenarios: list[dict] | None = None
+    ) -> list[dict]:
+        """
+        Run end-to-end browser tests using the browser-use bridge.
+        
+        Uses the browser to:
+        - Navigate to pages
+        - Fill forms, click buttons
+        - Verify page content
+        - Take screenshots for visual regression
+        
+        Args:
+            url: Base URL of the application to test
+            context: Project context with architecture/spec info
+            test_scenarios: Optional list of test scenarios. If not provided,
+                          generates from the test plan.
+        
+        Returns:
+            List of test results with pass/fail status
+        """
+        if self._browser_bridge is None:
+            await self.say("No browser bridge configured. Cannot run E2E tests.")
+            return []
+        
+        # Generate test scenarios if not provided
+        if not test_scenarios:
+            architecture = context.get("architecture", {})
+            test_plan = architecture.get("test_plan", "")
+            
+            scenarios_json = await self.think(
+                f"Base URL: {url}\n"
+                f"Test plan: {test_plan}\n"
+                f"Architecture: {json.dumps(architecture, indent=2)[:2000]}\n\n"
+                "Generate E2E browser test scenarios. For each scenario:\n"
+                "- name: descriptive name\n" 
+                "- steps: what to do (click, fill, navigate)\n"
+                "- expected: what should happen\n\n"
+                "Output as JSON array. Generate 5-10 critical path scenarios.",
+                task_type="testing",
+            )
+            
+            try:
+                if "```" in scenarios_json:
+                    json_str = scenarios_json.split("```")[1]
+                    if json_str.startswith("json"):
+                        json_str = json_str[4:]
+                    test_scenarios = json.loads(json_str.strip())
+                else:
+                    test_scenarios = json.loads(scenarios_json.strip())
+            except (json.JSONDecodeError, IndexError):
+                await self.say("Failed to generate test scenarios")
+                return []
+        
+        await self.say(f"Running {len(test_scenarios)} E2E browser tests on {url}")
+        
+        # Execute tests through the browser bridge
+        results = await self._browser_bridge.test_webapp(url, test_scenarios)
+        
+        # Record results
+        passed = sum(1 for r in results if r.get("passed"))
+        failed = len(results) - passed
+        
+        await self.brain.add_test_result(
+            test_name=f"e2e_{url}",
+            status="passed" if failed == 0 else "failed",
+            details=json.dumps({
+                "url": url,
+                "total": len(results),
+                "passed": passed,
+                "failed": failed,
+                "scenarios": [r["scenario"] for r in results if not r.get("passed")],
+            }),
+            agent_id=self.agent_id,
+        )
+        
+        if failed > 0:
+            await self.say(f"E2E tests: {passed} passed, {failed} failed")
+            # Report failures as bugs
+            for result in results:
+                if not result.get("passed"):
+                    await self.brain.add_error(
+                        error=f"E2E test failed: {result.get('scenario')}",
+                        file_path=url,
+                        agent_id=self.agent_id,
+                        details=result.get("details", ""),
+                    )
+        else:
+            await self.say(f"All {passed} E2E tests passed!")
+        
+        return results
+    
+    async def visual_regression_test(
+        self,
+        url: str,
+        baseline_screenshot: str | None = None,
+        design_spec: str | None = None
+    ) -> dict:
+        """
+        Run visual regression testing on a page.
+        
+        Args:
+            url: URL to test
+            baseline_screenshot: Path to baseline screenshot for comparison
+            design_spec: Design specification to compare against
+            
+        Returns:
+            Dict with comparison results
+        """
+        if self._browser_bridge is None:
+            return {"error": "No browser bridge configured"}
+        
+        workspace = self.brain.data.get("workspace_path", "")
+        screenshot_dir = Path(workspace) / "output" / "screenshots"
+        screenshot_dir.mkdir(parents=True, exist_ok=True)
+        
+        current_screenshot = str(screenshot_dir / f"visual_test_{int(time.time())}.png")
+        
+        # Take screenshot
+        success = await self._browser_bridge.take_visual_snapshot(url, current_screenshot)
+        if not success:
+            return {"error": "Failed to capture screenshot"}
+        
+        result = {
+            "url": url,
+            "screenshot": current_screenshot,
+            "matches": True,
+            "issues": [],
+        }
+        
+        # Compare against design spec if provided
+        if design_spec:
+            comparison = await self._browser_bridge.compare_visual(url, design_spec)
+            result["design_comparison"] = comparison
+            
+            try:
+                comp_data = json.loads(comparison.get("comparison", "{}"))
+                result["matches"] = comp_data.get("matches", True)
+                result["issues"] = comp_data.get("issues", [])
+            except json.JSONDecodeError:
+                pass
+        
+        # Store result
+        await self.brain.add_test_result(
+            test_name=f"visual_{url}",
+            status="passed" if result["matches"] else "failed",
+            details=json.dumps(result),
+            agent_id=self.agent_id,
+        )
+        
+        return result

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Jeph2Sworm Browser",
   "description": "AI-controlled browser agent for the Jeph2Sworm development swarm",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "permissions": [
     "activeTab",
     "scripting",

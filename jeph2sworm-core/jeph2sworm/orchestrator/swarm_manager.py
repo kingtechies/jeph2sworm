@@ -115,6 +115,11 @@ class SwarmManager:
             )
             # Give agents access to the context manager for RAG queries
             agent.context_manager = self.context_manager
+            
+            # Wire browser bridge to tester agent for E2E testing
+            if role == AgentRole.TESTER and hasattr(agent, "set_browser_bridge"):
+                agent.set_browser_bridge(self.browser_bridge)
+            
             self.agents[agent_id] = agent
             self.lifecycle.register_agent(agent)
             logger.info(f"Created agent: {agent_id}")

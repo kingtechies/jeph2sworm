@@ -2,13 +2,38 @@
   "name": "jeph2sworm",
   "displayName": "Jeph2Sworm",
   "description": "Autonomous AI Development Swarm - multi-agent system that builds complete applications",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "kingtechies",
   "engines": {
     "vscode": "^1.85.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kingtechies/jeph2sworm"
+  },
+  "bugs": {
+    "url": "https://github.com/kingtechies/jeph2sworm/issues"
+  },
+  "homepage": "https://github.com/kingtechies/jeph2sworm#readme",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "autonomous",
+    "development",
+    "swarm",
+    "code-generation",
+    "multi-agent",
+    "llm"
+  ],
   "categories": [
     "Programming Languages",
+    "Machine Learning",
     "Other"
   ],
   "activationEvents": [
@@ -159,7 +184,16 @@
         "jeph2sworm.apiProvider": {
           "type": "string",
           "default": "openai",
-          "enum": ["openai", "anthropic", "xai", "google", "deepseek", "mistral", "together", "cohere"],
+          "enum": [
+            "openai",
+            "anthropic",
+            "xai",
+            "google",
+            "deepseek",
+            "mistral",
+            "together",
+            "cohere"
+          ],
           "description": "Default LLM provider"
         },
         "jeph2sworm.autoInstallPackages": {
@@ -204,6 +238,7 @@
     "@types/ws": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.20.0",
     "eslint": "^8.0.0",
     "typescript": "^5.3.0"

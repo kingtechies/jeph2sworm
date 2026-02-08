@@ -4,13 +4,25 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jeph2sworm-core"
-version = "0.1.0"
+version = "1.0.0"
 description = "Autonomous AI development swarm - multi-agent orchestration backend"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
     { name = "kingtechies" },
+]
+keywords = ["ai", "agents", "autonomous", "development", "swarm", "llm", "multi-agent"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Code Generators",
 ]
 
 dependencies = [
