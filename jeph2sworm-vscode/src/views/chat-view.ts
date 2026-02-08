@@ -1,5 +1,8 @@
 /**
  * Chat webview - the main user interaction panel in the sidebar.
+ *
+ * Serves the React webview-ui build (built via Vite) which provides
+ * the tabbed Chat / Agents / Progress UI.
  */
 
 import * as vscode from "vscode";
@@ -25,208 +28,110 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [this.extensionUri],
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.extensionUri, "dist", "webview"),
+      ],
     };
 
-    webviewView.webview.html = this.getHtml();
+    webviewView.webview.html = this.getHtml(webviewView.webview);
 
-    // Handle messages from the webview
+    // Handle messages from the React webview
     webviewView.webview.onDidReceiveMessage(async (msg) => {
-      if (msg.type === "sendMessage") {
-        await this.client.sendMessage(msg.text);
+      switch (msg.type) {
+        case "chat":
+          // React ChatPanel sends { type: 'chat', message }
+          await this.client.sendMessage(msg.message);
+          break;
+        case "sendMessage":
+          // Legacy inline message format
+          await this.client.sendMessage(msg.text);
+          break;
+        case "requestStatus":
+          try {
+            const status = await this.client.getStatus();
+            webviewView.webview.postMessage({
+              type: "statusUpdate",
+              status,
+            });
+          } catch { /* ignore */ }
+          break;
       }
     });
   }
 
   onEvent(event: SwarmEvent): void {
-    if (this.view) {
+    if (!this.view) { return; }
+
+    const eventType = event.type || event.event_type || "";
+    const data = event.data || {};
+
+    // Forward as agent_message for ChatPanel React component
+    if (eventType === "agent_message" && data.message) {
       this.view.webview.postMessage({
-        type: "swarmEvent",
-        event,
+        type: "agent_message",
+        agent: event.source || "system",
+        content: data.message as string,
+      });
+    } else {
+      // Forward all other events with a generic format
+      this.view.webview.postMessage({
+        type: "chat_response",
+        agent: event.source || "system",
+        content: `[${eventType}] ${(data.message as string) || JSON.stringify(data).substring(0, 200)}`,
+      });
+    }
+
+    // Forward status updates for the agents/progress tabs
+    if (eventType === "status_update" || eventType === "initial_state") {
+      this.view.webview.postMessage({
+        type: "statusUpdate",
+        status: data,
       });
     }
   }
 
-  private getHtml(): string {
+  /**
+   * Generates the HTML that loads the Vite-built React app.
+   * Falls back to an inline UI if the build output isn't found.
+   */
+  private getHtml(webview: vscode.Webview): string {
+    const scriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "dist", "webview", "assets", "index.js")
+    );
+    const cssUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "dist", "webview", "assets", "index.css")
+    );
+
+    const nonce = getNonce();
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none';
+      style-src ${webview.cspSource} 'unsafe-inline';
+      script-src 'nonce-${nonce}';
+      font-src ${webview.cspSource};" />
+  <link href="${cssUri}" rel="stylesheet" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      color: var(--vscode-foreground);
-      background: var(--vscode-sideBar-background);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    #messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
-    .message {
-      margin-bottom: 12px;
-      padding: 8px 12px;
-      border-radius: 6px;
-      line-height: 1.4;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-    .message.user {
-      background: var(--vscode-input-background);
-      border: 1px solid var(--vscode-input-border);
-    }
-    .message.agent {
-      background: var(--vscode-editor-background);
-      border-left: 3px solid var(--vscode-activityBarBadge-background);
-    }
-    .message .source {
-      font-size: 0.8em;
-      color: var(--vscode-descriptionForeground);
-      margin-bottom: 4px;
-    }
-    .event {
-      font-size: 0.85em;
-      color: var(--vscode-descriptionForeground);
-      padding: 4px 8px;
-      margin-bottom: 4px;
-    }
-    .event .type {
-      color: var(--vscode-activityBarBadge-background);
-      font-weight: 600;
-    }
-    #input-area {
-      padding: 8px;
-      border-top: 1px solid var(--vscode-panel-border);
-      display: flex;
-      gap: 4px;
-    }
-    #input {
-      flex: 1;
-      padding: 6px 10px;
-      border-radius: 4px;
-      border: 1px solid var(--vscode-input-border);
-      background: var(--vscode-input-background);
-      color: var(--vscode-input-foreground);
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      resize: none;
-    }
-    #input:focus { outline: 1px solid var(--vscode-focusBorder); }
-    button {
-      padding: 6px 14px;
-      border-radius: 4px;
-      border: none;
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      cursor: pointer;
-      font-size: var(--vscode-font-size);
-    }
-    button:hover { background: var(--vscode-button-hoverBackground); }
-    .status-bar {
-      padding: 4px 8px;
-      font-size: 0.8em;
-      color: var(--vscode-descriptionForeground);
-      border-bottom: 1px solid var(--vscode-panel-border);
-      display: flex;
-      justify-content: space-between;
-    }
-    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
-    .dot.connected { background: #4caf50; }
-    .dot.disconnected { background: #f44336; }
+    html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
   </style>
 </head>
 <body>
-  <div class="status-bar">
-    <span><span class="dot disconnected" id="status-dot"></span><span id="status-text">Disconnected</span></span>
-    <span id="agent-count">0 agents</span>
-  </div>
-  <div id="messages"></div>
-  <div id="input-area">
-    <textarea id="input" rows="2" placeholder="Describe your project or ask a question..."></textarea>
-    <button id="send">Send</button>
-  </div>
-
-  <script>
-    const vscode = acquireVsCodeApi();
-    const messages = document.getElementById("messages");
-    const input = document.getElementById("input");
-    const sendBtn = document.getElementById("send");
-    const statusDot = document.getElementById("status-dot");
-    const statusText = document.getElementById("status-text");
-
-    function addMessage(role, text, source) {
-      const div = document.createElement("div");
-      div.className = "message " + role;
-      if (source) {
-        const srcDiv = document.createElement("div");
-        srcDiv.className = "source";
-        srcDiv.textContent = source;
-        div.appendChild(srcDiv);
-      }
-      const content = document.createElement("div");
-      content.textContent = text;
-      div.appendChild(content);
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    function escapeHtml(str) {
-      const d = document.createElement('div');
-      d.textContent = str;
-      return d.innerHTML;
-    }
-
-    function addEvent(type, source, data) {
-      const div = document.createElement("div");
-      div.className = "event";
-      const typeSpan = document.createElement("span");
-      typeSpan.className = "type";
-      typeSpan.textContent = "[" + type + "]";
-      div.appendChild(typeSpan);
-      div.appendChild(document.createTextNode(" " + source + ": " + (data.message || JSON.stringify(data).substring(0, 100))));
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    sendBtn.addEventListener("click", () => {
-      const text = input.value.trim();
-      if (!text) return;
-      addMessage("user", text, "You");
-      vscode.postMessage({ type: "sendMessage", text });
-      input.value = "";
-    });
-
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendBtn.click();
-      }
-    });
-
-    window.addEventListener("message", (e) => {
-      const msg = e.data;
-      if (msg.type === "swarmEvent") {
-        const event = msg.event;
-        if (event.event_type === "agent_message" && event.data?.message) {
-          addMessage("agent", event.data.message, event.source);
-        } else {
-          addEvent(event.event_type || event.type, event.source || "", event.data || {});
-        }
-
-        if (event.type === "initial_state") {
-          statusDot.className = "dot connected";
-          statusText.textContent = "Connected";
-        }
-      }
-    });
-  </script>
+  <div id="root"></div>
+  <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
 </body>
 </html>`;
   }
+}
+
+function getNonce(): string {
+  let text = "";
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return text;
 }
