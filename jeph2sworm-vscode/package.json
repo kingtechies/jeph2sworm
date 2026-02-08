@@ -39,6 +39,15 @@
         {
           "id": "jeph2sworm.tasksView",
           "name": "Tasks"
+        },
+        {
+          "type": "webview",
+          "id": "jeph2sworm.eventFeed",
+          "name": "Event Feed"
+        },
+        {
+          "id": "jeph2sworm.fileChanges",
+          "name": "File Changes"
         }
       ]
     },
@@ -111,6 +120,16 @@
       {
         "command": "jeph2sworm.connectBrowser",
         "title": "Connect Browser Extension",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.viewConversations",
+        "title": "View Agent Conversations",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.startProject",
+        "title": "Start Project (from Setup Wizard)",
         "category": "Jeph2Sworm"
       }
     ],

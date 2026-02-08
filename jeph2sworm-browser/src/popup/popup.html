@@ -16,17 +16,21 @@
 </head>
 <body>
   <h1>🐝 jeph2sworm</h1>
-  <div class="status">
-    <span id="statusDot" class="dot disconnected"></span>
-    <span id="statusText">Disconnected</span>
+  <div id="connection-status">
+    <div class="status">
+      <span id="statusDot" class="dot disconnected"></span>
+      <span id="statusText">Disconnected</span>
+    </div>
   </div>
-  <div class="actions">
-    <button id="btnConnect">Connect to Server</button>
-    <button id="btnCapture">Capture Page</button>
-    <button id="btnExtract">Extract DOM</button>
-    <button id="btnPanel">Open Side Panel</button>
+  <div id="quick-actions">
+    <div class="actions">
+      <button id="btnConnect">Connect to Server</button>
+      <button id="btnCapture">Capture Page</button>
+      <button id="btnExtract">Extract DOM</button>
+      <button id="btnPanel">Open Side Panel</button>
+    </div>
   </div>
   <div class="footer">jeph2sworm browser extension v0.1.0</div>
-  <script src="../../dist/popup/popup.js" type="module"></script>
+  <script src="../../dist/popup/popup.js"></script>
 </body>
 </html>

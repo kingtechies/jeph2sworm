@@ -29,10 +29,10 @@ class EventLogger:
 
     def __init__(
         self,
-        log_dir: str = ".jeph2sworm/events",
+        log_dir: str | Path = ".jeph2sworm/events",
         max_in_memory: int = 5000,
     ):
-        self.log_dir = Path(log_dir)
+        self.log_dir = Path(log_dir).resolve()
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.max_in_memory = max_in_memory
 

@@ -1,9 +1,13 @@
 /**
  * Background service worker for the Jeph2Sworm browser extension.
  *
- * Maintains WebSocket connection to the backend, routes commands
- * to content scripts, and manages browser automation.
+ * Uses modular WebSocketClient, CommandQueue, and TabManager for
+ * reliable backend communication, queued command execution, and tab control.
  */
+
+import { WebSocketClient } from "./background/websocket-client";
+import { CommandQueue } from "./background/command-queue";
+import { TabManager } from "./background/tab-manager";
 
 const DEFAULT_WS_URL = "ws://127.0.0.1:8765/ws";
 
@@ -13,135 +17,98 @@ interface SwarmMessage {
   [key: string]: unknown;
 }
 
-let ws: WebSocket | null = null;
-let connected = false;
-let clientId = `browser-${Date.now()}`;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 10;
+// ── Module Instances ──────────────────────────────────────────────
 
-// ── WebSocket Connection ──────────────────────────────────────────
+const clientId = `browser-${Date.now()}`;
+const wsClient = new WebSocketClient(`${DEFAULT_WS_URL}/${clientId}?client_type=browser`);
+const commandQueue = new CommandQueue();
+const tabManager = new TabManager();
 
-function connectToBackend(): void {
-  const url = `${DEFAULT_WS_URL}/${clientId}?client_type=browser`;
-  ws = new WebSocket(url);
+// ── WebSocket Event Handlers ──────────────────────────────────────
 
-  ws.onopen = () => {
-    connected = true;
-    reconnectAttempts = 0;
-    console.log("[Jeph2Sworm] Connected to backend");
-    broadcastToSidePanel({ type: "connection_status", data: { connected: true } });
-  };
+wsClient.on("connected", () => {
+  console.log("[Jeph2Sworm] Connected to backend");
+  broadcastToSidePanel({ type: "connection_status", data: { connected: true } });
+});
 
-  ws.onmessage = (event) => {
-    try {
-      const msg: SwarmMessage = JSON.parse(event.data as string);
-      handleBackendMessage(msg);
-    } catch {
-      // Ignore malformed messages
-    }
-  };
+wsClient.on("disconnected", () => {
+  console.log("[Jeph2Sworm] Disconnected.");
+  broadcastToSidePanel({ type: "connection_status", data: { connected: false } });
+});
 
-  ws.onclose = () => {
-    connected = false;
-    console.log("[Jeph2Sworm] Disconnected.");
-    broadcastToSidePanel({ type: "connection_status", data: { connected: false } });
-    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-      reconnectAttempts++;
-      const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts - 1), 30000);
-      console.log(`[Jeph2Sworm] Reconnecting in ${Math.round(delay/1000)}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
-      setTimeout(connectToBackend, delay);
-    }
-  };
+wsClient.on("browser_command", (msg: any) => {
+  handleBrowserCommand(msg.data || msg);
+});
 
-  ws.onerror = () => {
-    // onclose will fire after this
-  };
-}
-
-function sendToBackend(msg: SwarmMessage): void {
-  if (ws && connected) {
-    ws.send(JSON.stringify(msg));
-  }
-}
-
-// ── Message Handling ──────────────────────────────────────────────
-
-function handleBackendMessage(msg: SwarmMessage): void {
-  // Forward to side panel
+wsClient.on("*", (msg: any) => {
+  // Forward all backend messages to side panel
   broadcastToSidePanel(msg);
+});
 
-  // Handle browser-specific commands
-  if (msg.type === "browser_command") {
-    handleBrowserCommand(msg.data || {});
-  }
-}
+// ── Command Queue Handlers ────────────────────────────────────────
 
-async function handleBrowserCommand(data: Record<string, unknown>): Promise<void> {
-  const action = data.action as string;
-
-  switch (action) {
-    case "navigate":
-      await navigateTab(data.url as string);
-      break;
-    case "screenshot":
-      await captureScreenshot();
-      break;
-    case "get_content":
-      await getPageContent();
-      break;
-    case "click":
-      await sendToActiveTab("click", { selector: data.selector });
-      break;
-    case "fill":
-      await sendToActiveTab("fill", { selector: data.selector, value: data.value });
-      break;
-    case "extract":
-      await sendToActiveTab("extract", { selector: data.selector });
-      break;
-    default:
-      console.warn(`[Jeph2Sworm] Unknown browser command: ${action}`);
-  }
-}
-
-// ── Browser Actions ───────────────────────────────────────────────
-
-async function navigateTab(url: string): Promise<void> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+commandQueue.registerHandler("navigate", async (params) => {
+  const url = params.url as string;
+  const tab = await tabManager.getActiveTab();
   if (tab?.id) {
-    await chrome.tabs.update(tab.id, { url });
-    sendToBackend({
-      type: "browser_action",
-      action: { type: "navigated", url },
-    });
+    await tabManager.navigateTo(tab.id, url);
+    wsClient.send({ type: "browser_action", action: { type: "navigated", url } });
   }
-}
+  return { ok: true, url };
+});
 
-async function captureScreenshot(): Promise<void> {
+commandQueue.registerHandler("screenshot", async () => {
   const dataUrl = await chrome.tabs.captureVisibleTab();
-  sendToBackend({
-    type: "browser_action",
-    action: { type: "screenshot", data: dataUrl },
-  });
-}
+  wsClient.send({ type: "browser_action", action: { type: "screenshot", data: dataUrl } });
+  return { ok: true, data: dataUrl };
+});
 
-async function getPageContent(): Promise<void> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+commandQueue.registerHandler("get_content", async () => {
+  const tab = await tabManager.getActiveTab();
   if (tab?.id) {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => document.documentElement.outerHTML,
     });
     if (results[0]?.result) {
-      sendToBackend({
+      wsClient.send({
         type: "browser_action",
         action: { type: "page_content", html: results[0].result },
       });
+      return { ok: true };
     }
+  }
+  return { ok: false };
+});
+
+commandQueue.registerHandler("click", async (params) => {
+  await sendToActiveTab("click", { selector: params.selector });
+  return { ok: true };
+});
+
+commandQueue.registerHandler("fill", async (params) => {
+  await sendToActiveTab("fill", { selector: params.selector, value: params.value });
+  return { ok: true };
+});
+
+commandQueue.registerHandler("extract", async (params) => {
+  await sendToActiveTab("extract", { selector: params.selector });
+  return { ok: true };
+});
+
+// ── Message Handling ──────────────────────────────────────────────
+
+async function handleBrowserCommand(data: Record<string, unknown>): Promise<void> {
+  const action = data.action as string;
+  try {
+    await commandQueue.enqueue(action, data);
+  } catch (err) {
+    console.warn(`[Jeph2Sworm] Command failed: ${action}`, err);
   }
 }
 
 async function sendToActiveTab(action: string, data: Record<string, unknown>): Promise<void> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = await tabManager.getActiveTab();
   if (tab?.id) {
     chrome.tabs.sendMessage(tab.id, { type: action, ...data });
   }
@@ -165,26 +132,38 @@ chrome.runtime.onInstalled.addListener(() => {
 // Listen for messages from side panel, popup, and content scripts
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "connect") {
-    connectToBackend();
+    wsClient.connect();
+    sendResponse({ ok: true });
+  } else if (msg.type === "disconnect") {
+    wsClient.disconnect();
     sendResponse({ ok: true });
   } else if (msg.type === "send_to_backend") {
-    sendToBackend(msg.data);
+    wsClient.send(msg.data);
     sendResponse({ ok: true });
   } else if (msg.type === "get_status") {
-    sendResponse({ connected });
+    sendResponse({ connected: wsClient.isConnected, pendingCommands: commandQueue.pendingCount });
   } else if (msg.type === "capture_screenshot") {
-    captureScreenshot().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+    commandQueue.enqueue("screenshot", {}).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
     return true; // async response
   } else if (msg.type === "content_action") {
-    // Forward content script events to backend
-    sendToBackend({
+    wsClient.send({
       type: "browser_action",
       action: { type: msg.action, ...msg.data, url: msg.url },
     });
     sendResponse({ ok: true });
+  } else if (msg.type === "create_tab") {
+    tabManager.createTab(msg.url, msg.purpose || "automation")
+      .then((tabId) => sendResponse({ ok: true, tabId }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  } else if (msg.type === "close_managed_tabs") {
+    tabManager.closeAll().then(() => sendResponse({ ok: true }));
+    return true;
+  } else if (msg.type === "get_managed_tabs") {
+    sendResponse({ tabs: tabManager.getAllManaged() });
   }
   return true;
 });
 
 // Auto-connect on startup
-connectToBackend();
+wsClient.connect();

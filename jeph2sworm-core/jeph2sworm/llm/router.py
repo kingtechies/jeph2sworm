@@ -92,14 +92,17 @@ class LLMRouter:
 
     def __init__(self) -> None:
         self.api_keys: dict[str, str] = {}  # provider -> api_key
+        self.base_urls: dict[str, str] = {}  # provider -> base_url
         self.default_provider: str = "openai"
         self.default_model: str = "gpt-4o"
         self.token_usage = TokenUsage()
         self._available_models: list[str] = []
 
-    def configure_provider(self, provider: str, api_key: str) -> None:
+    def configure_provider(self, provider: str, api_key: str, base_url: str | None = None) -> None:
         """Register an API key for a provider."""
         self.api_keys[provider] = api_key
+        if base_url:
+            self.base_urls[provider] = base_url
 
         # Set the environment variable that litellm expects
         import os
@@ -189,6 +192,10 @@ class LLMRouter:
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                 }
+                # Add base_url if configured for this model's provider
+                provider = try_model.split("/")[0] if "/" in try_model else self.default_provider
+                if provider in self.base_urls:
+                    kwargs["api_base"] = self.base_urls[provider]
                 if json_mode:
                     kwargs["response_format"] = {"type": "json_object"}
                 if tools:

@@ -22,6 +22,8 @@ from jeph2sworm.events import EventType, SwarmEvent
 from jeph2sworm.events.event_bus import event_bus
 from jeph2sworm.llm.router import LLMRouter, PROVIDER_MODELS
 from jeph2sworm.security.rules_engine import RulesEngine
+from jeph2sworm.tools.file_system import FileSystem
+from jeph2sworm.tools.terminal import Terminal
 
 logger = structlog.get_logger()
 
@@ -50,7 +52,10 @@ class SwarmManager:
         self.brain = Brain(brain_dir=Path(self.settings.brain_dir) if not isinstance(self.settings.brain_dir, Path) else self.settings.brain_dir)
         self.llm_router = LLMRouter()
         workspace = Path(self.settings.workspace_dir) if self.settings.workspace_dir else Path.cwd()
+        self.workspace = workspace
         self.rules_engine = RulesEngine(workspace_root=workspace)
+        self.file_system = FileSystem(workspace_root=workspace, rules=self.rules_engine)
+        self.terminal = Terminal(workspace_root=str(workspace), rules=self.rules_engine)
         self.agents: Dict[str, BaseAgent] = {}
         self._agent_tasks: Dict[str, asyncio.Task] = {}
         self._running = False
@@ -77,8 +82,9 @@ class SwarmManager:
                 agent_id=agent_id,
                 role=role,
                 brain=self.brain,
-                llm_router=self.llm_router,
-                workspace=workspace,
+                llm=self.llm_router,
+                file_system=self.file_system,
+                terminal=self.terminal,
             )
             self.agents[agent_id] = agent
             logger.info(f"Created agent: {agent_id}")
@@ -233,10 +239,10 @@ class SwarmManager:
         )
 
     async def configure_llm_provider(
-        self, provider: str, api_key: str, **kwargs
+        self, provider: str, api_key: str, base_url: str | None = None, **kwargs
     ) -> None:
-        """Configure an LLM provider with its API key."""
-        self.llm_router.configure_provider(provider, api_key)
+        """Configure an LLM provider with its API key and optional base URL."""
+        self.llm_router.configure_provider(provider, api_key, base_url=base_url)
         logger.info(f"Configured LLM provider: {provider}")
 
     async def get_conversation_history(self) -> list:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import signal
 import sys
+from contextlib import asynccontextmanager
 
 import structlog
 import uvicorn
@@ -40,10 +41,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Create and configure the FastAPI application."""
     settings = settings or Settings()
 
+    # Swarm lifecycle via lifespan context manager
+    swarm = SwarmManager(settings)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        logger.info("Starting Jeph2Sworm server", host=settings.host, port=settings.port)
+        await swarm.initialize()
+        set_swarm_manager(swarm)
+        logger.info("Server ready. Waiting for connections.")
+        yield
+        logger.info("Shutting down Jeph2Sworm server")
+        await swarm.stop()
+
     app = FastAPI(
         title="Jeph2Sworm",
         description="Autonomous AI Development Swarm",
         version="0.1.0",
+        lifespan=lifespan,
     )
 
     # Middleware
@@ -56,22 +71,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.websocket("/ws/{client_id}")
     async def ws_route(websocket: WebSocket, client_id: str, client_type: str = "vscode"):
         await websocket_endpoint(websocket, client_id, client_type)
-
-    # Swarm lifecycle
-    swarm = SwarmManager(settings)
-
-    @app.on_event("startup")
-    async def on_startup():
-        logger.info("Starting Jeph2Sworm server", host=settings.host, port=settings.port)
-        await swarm.initialize()
-        set_swarm_manager(swarm)
-        # Don't start agents automatically - wait for user to connect and set project
-        logger.info("Server ready. Waiting for connections.")
-
-    @app.on_event("shutdown")
-    async def on_shutdown():
-        logger.info("Shutting down Jeph2Sworm server")
-        await swarm.stop()
 
     # Store references
     app.state.swarm = swarm

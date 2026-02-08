@@ -10,6 +10,14 @@ import { SwarmClient } from "./client";
 import { ChatViewProvider } from "./views/chat-view";
 import { AgentsTreeProvider } from "./views/agents-tree";
 import { TasksTreeProvider } from "./views/tasks-tree";
+import { EventFeedProvider } from "./views/event-feed";
+import { FileChangeLogProvider } from "./views/sidebar/FileChangeLog";
+import { TestDashboardPanel } from "./views/panels/TestDashboard";
+import { AgentConversationPanel } from "./views/panels/AgentConversation";
+import { SetupWizardPanel } from "./views/panels/SetupWizard";
+import { AiEnvViewerPanel } from "./views/panels/AiEnvViewer";
+import { BrainViewerPanel } from "./views/panels/BrainViewer";
+import { DeployStatusPanel } from "./views/panels/DeployStatus";
 
 let client: SwarmClient;
 
@@ -25,11 +33,15 @@ export function activate(context: vscode.ExtensionContext) {
   const chatProvider = new ChatViewProvider(context.extensionUri, client);
   const agentsProvider = new AgentsTreeProvider(client);
   const tasksProvider = new TasksTreeProvider(client);
+  const eventFeedProvider = new EventFeedProvider(context.extensionUri);
+  const fileChangeLogProvider = new FileChangeLogProvider();
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider("jeph2sworm.chatView", chatProvider),
     vscode.window.registerTreeDataProvider("jeph2sworm.agentsView", agentsProvider),
-    vscode.window.registerTreeDataProvider("jeph2sworm.tasksView", tasksProvider)
+    vscode.window.registerTreeDataProvider("jeph2sworm.tasksView", tasksProvider),
+    vscode.window.registerWebviewViewProvider("jeph2sworm.eventFeed", eventFeedProvider),
+    vscode.window.registerTreeDataProvider("jeph2sworm.fileChanges", fileChangeLogProvider)
   );
 
   // Register commands
@@ -44,21 +56,7 @@ export function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand("jeph2sworm.newProject", async () => {
-      const name = await vscode.window.showInputBox({
-        prompt: "Project name",
-        placeHolder: "my-awesome-app",
-      });
-      if (name) {
-        const desc = await vscode.window.showInputBox({
-          prompt: "Describe your project in one sentence",
-          placeHolder: "A SaaS platform for...",
-        });
-        if (desc) {
-          await client.sendMessage(
-            `Create a new project called "${name}": ${desc}`
-          );
-        }
-      }
+      SetupWizardPanel.show(context.extensionUri);
     }),
 
     vscode.commands.registerCommand("jeph2sworm.configureProvider", async () => {
@@ -112,12 +110,17 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand("jeph2sworm.viewBrainMemory", async () => {
       try {
+        BrainViewerPanel.show(context.extensionUri);
         const brain = await client.getBrainSummary();
-        const doc = await vscode.workspace.openTextDocument({
-          content: JSON.stringify(brain, null, 2),
-          language: "json",
-        });
-        await vscode.window.showTextDocument(doc, { preview: true });
+        // Convert brain stats to entries for the viewer
+        const entries = Object.entries(brain).map(([key, value], i) => ({
+          id: `brain-${i}`,
+          type: "knowledge" as const,
+          summary: `${key}: ${JSON.stringify(value).substring(0, 200)}`,
+          timestamp: Date.now(),
+          relevance: 1,
+        }));
+        BrainViewerPanel.setEntries(entries);
       } catch (err) {
         vscode.window.showErrorMessage(`Jeph2Sworm: ${err}`);
       }
@@ -135,24 +138,24 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand("jeph2sworm.viewAiEnv", async () => {
       try {
+        AiEnvViewerPanel.show(context.extensionUri);
         const credentials = await client.getCredentials();
-        const channel = vscode.window.createOutputChannel("Jeph2Sworm ai.env");
-        channel.clear();
-        channel.appendLine("# ai.env — Managed by Jeph2Sworm");
-        channel.appendLine("# Values are masked. Use 'Reveal Credential' to see full values.\n");
-        for (const cred of credentials) {
-          const masked = cred.value
+        const vars = credentials.map((cred) => ({
+          key: cred.key_name,
+          maskedValue: cred.value
             ? cred.value.slice(0, 4) + "****" + cred.value.slice(-4)
-            : "****";
-          channel.appendLine(`${cred.key_name}=${masked}  # ${cred.purpose}`);
-        }
-        channel.show();
+            : "****",
+          provider: cred.purpose || "unknown",
+          rotatedAt: new Date().toISOString(),
+        }));
+        AiEnvViewerPanel.setVars(vars);
       } catch (err) {
         vscode.window.showErrorMessage(`Jeph2Sworm: ${err}`);
       }
     }),
 
     vscode.commands.registerCommand("jeph2sworm.runTests", async () => {
+      TestDashboardPanel.show(context.extensionUri);
       vscode.window.showInformationMessage("Jeph2Sworm: Starting test suite...");
       client.send({ type: "command", command: "run_tests" });
     }),
@@ -163,7 +166,15 @@ export function activate(context: vscode.ExtensionContext) {
         { placeHolder: "Select deployment target" }
       );
       if (target) {
+        DeployStatusPanel.show(context.extensionUri);
         client.send({ type: "command", command: "deploy", target });
+        DeployStatusPanel.update({
+          environment: target,
+          status: "pending",
+          version: "0.1.0",
+          timestamp: Date.now(),
+          logs: ["Deployment initiated..."],
+        });
         vscode.window.showInformationMessage(
           `Jeph2Sworm: Deploying to ${target}...`
         );
@@ -194,6 +205,25 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage(
         `Jeph2Sworm: Connecting browser extension on port ${browserPort}...`
       );
+    }),
+
+    // ---- Panels ----
+
+    vscode.commands.registerCommand("jeph2sworm.viewConversations", async () => {
+      AgentConversationPanel.show(context.extensionUri);
+    }),
+
+    vscode.commands.registerCommand("jeph2sworm.startProject", async (projectConfig: any) => {
+      // Called by SetupWizard panel after user completes setup
+      if (!projectConfig) { return; }
+      if (projectConfig.apiKey && projectConfig.llmProvider) {
+        await client.configureProvider(projectConfig.llmProvider, projectConfig.apiKey);
+      }
+      const message = `Create a new project called "${projectConfig.name}": ${projectConfig.description}. `
+        + `Frontend: ${projectConfig.frontend}, Backend: ${projectConfig.backend}, `
+        + `Database: ${projectConfig.database}`;
+      await client.sendMessage(message);
+      vscode.window.showInformationMessage(`Jeph2Sworm: Project "${projectConfig.name}" creation started!`);
     })
   );
 
@@ -202,6 +232,63 @@ export function activate(context: vscode.ExtensionContext) {
     agentsProvider.refresh();
     tasksProvider.refresh();
     chatProvider.onEvent(event);
+
+    // Feed events to EventFeedProvider (adapt shape)
+    eventFeedProvider.addEvent({
+      type: (event.type || event.event_type || "unknown") as any,
+      agent: event.source || "system",
+      data: event.data || {},
+      timestamp: event.timestamp ? new Date(event.timestamp).getTime() / 1000 : Date.now() / 1000,
+    });
+
+    // Route file events to FileChangeLogProvider
+    const eventType = event.type || event.event_type || "";
+    if (eventType === "file_created" || eventType === "file_modified") {
+      const data = event.data || {};
+      fileChangeLogProvider.addChange({
+        filePath: (data.file_path as string) || "unknown",
+        agent: event.source || "system",
+        action: eventType === "file_created" ? "created" : "modified",
+        timestamp: Date.now(),
+      });
+    }
+
+    // Route agent messages to AgentConversationPanel
+    if (eventType === "agent_message") {
+      const data = event.data || {};
+      AgentConversationPanel.addMessage({
+        from: event.source || "system",
+        to: (data.target as string) || "user",
+        content: (data.message as string) || JSON.stringify(data),
+        timestamp: Date.now(),
+      });
+    }
+
+    // Route test results to TestDashboardPanel
+    if (eventType === "test_passed" || eventType === "test_failed") {
+      const data = event.data || {};
+      TestDashboardPanel.setResults([
+        {
+          name: (data.test_name as string) || "test",
+          suite: (data.suite as string) || "default",
+          status: eventType === "test_passed" ? "passed" : "failed",
+          duration: (data.duration as number) || 0,
+          error: data.error as string | undefined,
+        },
+      ]);
+    }
+
+    // Route deploy events to DeployStatusPanel
+    if (eventType === "deploy_started" || eventType === "deploy_completed") {
+      const data = event.data || {};
+      DeployStatusPanel.update({
+        environment: (data.target as string) || "unknown",
+        status: eventType === "deploy_started" ? "deploying" : (data.success ? "success" : "failed"),
+        version: (data.version as string) || "0.1.0",
+        timestamp: Date.now(),
+        logs: [(data.message as string) || eventType],
+      });
+    }
   });
 
   // Auto-connect if configured
