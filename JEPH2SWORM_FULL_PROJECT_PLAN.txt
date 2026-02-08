@@ -1,0 +1,1909 @@
+
+================================================================================
+                        JEPH2SWORM / JEPH2CODE
+                  FULL PROJECT PLAN & ARCHITECTURE
+================================================================================
+                   Created: February 8, 2026
+                   Author: Jeph (Founder)
+================================================================================
+
+
+TABLE OF CONTENTS
+-----------------
+  1.  VISION & OVERVIEW
+  2.  PRODUCT COMPONENTS
+  3.  SYSTEM ARCHITECTURE (HIGH-LEVEL)
+  4.  VS CODE EXTENSION — DETAILED PLAN
+  5.  CHROME EXTENSION — DETAILED PLAN
+  6.  MULTI-AGENT SWARM SYSTEM
+  7.  BRAIN & SHARED MEMORY
+  8.  AGENT ROLES & RESPONSIBILITIES
+  9.  REAL-TIME COMMUNICATION PROTOCOL
+  10. LLM PROVIDER INTEGRATION
+  11. SECURITY & RULES ENGINE
+  12. AI.ENV — CREDENTIAL MANAGEMENT
+  13. BROWSER-USE INTEGRATION
+  14. FILE SYSTEM & TERMINAL ACCESS
+  15. TESTING PHILOSOPHY (120x TEST CYCLES)
+  16. USER ONBOARDING FLOW
+  17. TECH STACK
+  18. DATABASE & STORAGE
+  19. PROJECT STRUCTURE — VS CODE EXTENSION
+  20. PROJECT STRUCTURE — CHROME EXTENSION
+  21. API DESIGN
+  22. DEVELOPMENT PHASES & MILESTONES
+  23. MONETIZATION & DISTRIBUTION
+  24. RISKS & MITIGATIONS
+  25. FUTURE ROADMAP
+
+
+================================================================================
+1. VISION & OVERVIEW
+================================================================================
+
+JEPH2SWORM is an autonomous AI development swarm that transforms a single
+product idea into a fully built, tested, and deployed software application.
+
+The user provides an idea. The swarm does everything else.
+
+No prompting fatigue. No context loss. No half-built projects. No wasted tokens.
+
+The system consists of TWO products that work together:
+
+  A) VS CODE EXTENSION ("jeph2sworm")
+     - AI chat sidebar (like Copilot)
+     - Multi-agent swarm that writes, builds, tests, deploys code
+     - Autonomous file system access
+     - Terminal & package manager control
+     - Real-time agent collaboration visible to user
+
+  B) CHROME EXTENSION ("jeph2sworm-browser")
+     - AI-controlled browser powered by browser-use library
+     - Screenshots, screen recording, DevTools access
+     - GUI interaction for design tools (Figma, Canva, etc.)
+     - Live website testing (not just curl)
+     - Asset downloading, form filling, research
+
+Together, these two extensions create a complete autonomous development
+environment where AI agents work like a real dev team.
+
+CORE PRINCIPLES:
+  - Zero-permission friction (user grants access once, agents work freely)
+  - Zero context loss (Brain maintains everything)
+  - Zero hallucination tolerance (strict rules engine)
+  - Real-time parallelism (all roles work simultaneously)
+  - Production-grade output (120+ test cycles before "done")
+  - Secure by default (ai.env with bitcoin-address-grade passwords)
+
+
+================================================================================
+2. PRODUCT COMPONENTS
+================================================================================
+
+COMPONENT 1: VS CODE EXTENSION
+  Name:        jeph2sworm
+  Platform:    VS Code Marketplace
+  Language:    TypeScript (extension host) + Python (agent backend)
+  Purpose:     AI swarm IDE integration
+
+COMPONENT 2: CHROME EXTENSION
+  Name:        jeph2sworm-browser
+  Platform:    Chrome Web Store
+  Language:    TypeScript + browser-use (Python backend)
+  Purpose:     AI-controlled browser for testing, research, GUI work
+
+COMPONENT 3: AGENT BACKEND (shared)
+  Name:        jeph2sworm-core
+  Language:    Python 3.11+
+  Purpose:     Multi-agent orchestration, LLM routing, memory, rules
+
+COMPONENT 4: COMMUNICATION LAYER
+  Protocol:    WebSocket + Event Bus
+  Purpose:     Real-time agent-to-agent and agent-to-UI communication
+
+
+================================================================================
+3. SYSTEM ARCHITECTURE (HIGH-LEVEL)
+================================================================================
+
+  +-------------------------------------------------------------------+
+  |                         USER                                       |
+  |   (Provides idea, answers questions, watches magic happen)         |
+  +-----------------------------------+-------------------------------+
+                                      |
+              +-----------------------+-----------------------+
+              |                                               |
+  +-----------v-----------+                     +-------------v-----------+
+  |  VS CODE EXTENSION    |                     |  CHROME EXTENSION       |
+  |  (Chat Sidebar UI)    |<--- WebSocket ----->|  (Browser Control UI)   |
+  |  - Agent chat panels  |                     |  - Screenshot/Record    |
+  |  - File tree view     |                     |  - DevTools access      |
+  |  - Progress dashboard |                     |  - GUI interaction      |
+  |  - Terminal output    |                     |  - Live site testing    |
+  +-----------+-----------+                     +-------------+-----------+
+              |                                               |
+              +-----------------------+-----------------------+
+                                      |
+                        +-------------v--------------+
+                        |    JEPH2SWORM-CORE         |
+                        |    (Python Backend)        |
+                        |                            |
+                        |  +----------------------+  |
+                        |  |   ORCHESTRATOR       |  |
+                        |  |   (Agent Manager)    |  |
+                        |  +----------+-----------+  |
+                        |             |              |
+                        |  +----------v-----------+  |
+                        |  |      BRAIN           |  |
+                        |  |  (Shared Memory)     |  |
+                        |  |  (Context Store)     |  |
+                        |  |  (Decision Engine)   |  |
+                        |  +----------+-----------+  |
+                        |             |              |
+                        |    +--------+--------+     |
+                        |    |  AGENT SWARM     |    |
+                        |    |                  |    |
+                        |    | +--+ +--+ +--+   |    |
+                        |    | |PM| |BE| |FE|   |    |
+                        |    | +--+ +--+ +--+   |    |
+                        |    | +--+ +--+ +--+   |    |
+                        |    | |UX| |QA| |DO|   |    |
+                        |    | +--+ +--+ +--+   |    |
+                        |    +--------+---------+    |
+                        |             |              |
+                        |  +----------v-----------+  |
+                        |  |   RULES ENGINE       |  |
+                        |  |   (Safety Layer)     |  |
+                        |  +----------------------+  |
+                        |                            |
+                        |  +----------------------+  |
+                        |  |   LLM ROUTER         |  |
+                        |  |   (Multi-Provider)   |  |
+                        |  +----------------------+  |
+                        +----------------------------+
+                                      |
+              +-----------------------+-----------------------+
+              |                       |                       |
+     +--------v------+    +----------v--------+    +---------v--------+
+     |  FILE SYSTEM   |    |   TERMINAL        |    |  BROWSER-USE     |
+     |  (Read/Write)  |    |   (Exec Cmds)     |    |  (Web Control)   |
+     +----------------+    +-------------------+    +------------------+
+
+
+================================================================================
+4. VS CODE EXTENSION — DETAILED PLAN
+================================================================================
+
+4.1 EXTENSION TYPE
+    - VS Code Extension (not a theme, not a snippet pack)
+    - Contributes: Sidebar View, Chat Participant, Commands, Status Bar
+    - Activation: On startup (always available)
+
+4.2 UI COMPONENTS
+
+    A) SIDEBAR PANEL (Primary Interface)
+       - Chat interface (similar to GitHub Copilot Chat)
+       - Project initialization wizard
+       - Agent status dashboard (shows all 6+ agents and their status)
+       - Real-time message feed (agent-to-agent messages visible)
+       - Progress bar per milestone
+       - File change log (shows files being created/modified)
+
+    B) STATUS BAR
+       - Shows: "Jeph2Sworm: Active | 6 Agents Working | 43% Complete"
+       - Click to expand agent dashboard
+
+    C) TREE VIEW (Activity Panel)
+       - Shows project structure being built in real-time
+       - Color-coded: green=complete, yellow=in-progress, red=blocked
+
+    D) WEBVIEW PANELS
+       - Agent conversation viewer (see agent-to-agent dialogue)
+       - Test results dashboard
+       - Deployment status
+       - ai.env viewer (secure, masked by default)
+
+4.3 COMMANDS (Command Palette)
+    - "Jeph2Sworm: Start New Project"
+    - "Jeph2Sworm: Connect API Key"
+    - "Jeph2Sworm: View Agent Activity"
+    - "Jeph2Sworm: View Brain Memory"
+    - "Jeph2Sworm: Pause All Agents"
+    - "Jeph2Sworm: Resume All Agents"
+    - "Jeph2Sworm: View ai.env"
+    - "Jeph2Sworm: Run Full Test Suite"
+    - "Jeph2Sworm: Deploy Project"
+    - "Jeph2Sworm: Export Project Report"
+    - "Jeph2Sworm: Connect Browser Extension"
+
+4.4 SETTINGS (User Configuration)
+    - jeph2sworm.apiProvider: "openai" | "anthropic" | "grok" | etc.
+    - jeph2sworm.apiKey: encrypted storage
+    - jeph2sworm.autoInstallPackages: true/false
+    - jeph2sworm.machinePassword: encrypted (for sudo operations)
+    - jeph2sworm.maxConcurrentAgents: 6 (default)
+    - jeph2sworm.testCycles: 120 (default)
+    - jeph2sworm.browserExtensionPort: 9222
+    - jeph2sworm.preferredStack: auto-detect or user-specified
+
+4.5 FILE SYSTEM ACCESS
+    - Full read/write to the workspace
+    - Can create directories, files, configs, env files
+    - Can modify package.json, requirements.txt, etc.
+    - No confirmation dialogs (user grants permission on first use)
+    - Git integration: auto-commit at milestones
+
+4.6 TERMINAL ACCESS
+    - Can execute any terminal command
+    - Can run npm install, pip install, docker commands, etc.
+    - Uses user-provided machine password for sudo if needed
+    - Captures all output for Brain context
+    - Can run multiple terminals simultaneously (one per agent)
+
+4.7 EXTENSION LIFECYCLE
+    1. User installs extension
+    2. First launch: Setup wizard
+       a. Connect LLM API key
+       b. Choose default provider
+       c. Optionally provide machine password
+       d. Install Chrome extension companion (optional)
+    3. User opens project / starts new project
+    4. Chat interface appears in sidebar
+    5. User describes their idea
+    6. Swarm activates
+
+
+================================================================================
+5. CHROME EXTENSION — DETAILED PLAN
+================================================================================
+
+5.1 PURPOSE
+    The Chrome extension is the "eyes and hands" of the swarm on the web.
+    It allows agents to:
+    - Browse websites (for research, testing, downloading assets)
+    - Take screenshots (for UI comparison, bug reports)
+    - Screen record (for demo generation, test evidence)
+    - Access DevTools (for debugging, performance analysis)
+    - Interact with GUI tools (Figma, Canva, web-based design tools)
+    - Fill forms, click buttons, navigate pages
+    - Download assets (images, fonts, icons)
+    - Test the deployed application live
+
+5.2 ARCHITECTURE
+    Built on top of browser-use (https://github.com/browser-use/browser-use)
+
+    Chrome Extension (Manifest V3)
+    |
+    +-- Content Script (page interaction)
+    |   - DOM manipulation
+    |   - Element selection
+    |   - Screenshot capture
+    |   - Form filling
+    |
+    +-- Background Service Worker
+    |   - WebSocket connection to jeph2sworm-core
+    |   - Tab management
+    |   - DevTools protocol bridge
+    |   - Command queue
+    |
+    +-- Side Panel (optional UI)
+    |   - Shows current browser task
+    |   - Screenshot preview
+    |   - Recording controls
+    |
+    +-- DevTools Panel
+        - Network request monitoring
+        - Console log capture
+        - Performance metrics
+        - Element inspection
+
+5.3 BROWSER-USE INTEGRATION
+    - browser-use library runs on the Python backend
+    - Communicates with Chrome via Chrome DevTools Protocol (CDP)
+    - Extension acts as a bridge between browser-use and the browser
+    - Supports:
+      * Page navigation
+      * Element interaction (click, type, scroll)
+      * Screenshot (full page, viewport, element)
+      * Screen recording (via MediaRecorder API)
+      * File download
+      * Cookie/session management
+      * Network interception
+
+5.4 KEY CAPABILITIES
+
+    A) SCREENSHOT & RECORDING
+       - Full page screenshot
+       - Viewport screenshot
+       - Element-specific screenshot
+       - Screen recording with audio (optional)
+       - Auto-annotated screenshots (highlights elements)
+
+    B) DEVTOOLS ACCESS
+       - Console log capture (errors, warnings, info)
+       - Network waterfall (API response times, failures)
+       - Performance metrics (LCP, FCP, CLS)
+       - DOM inspection
+       - CSS computed styles
+       - Local/Session storage access
+
+    C) GUI INTERACTION
+       - Can use Figma to extract design assets
+       - Can use Canva to generate graphics
+       - Can navigate admin panels
+       - Can fill deployment forms (Vercel, Netlify, etc.)
+
+    D) LIVE TESTING
+       - Navigate to deployed URL
+       - Click through user flows
+       - Capture visual regressions
+       - Test responsive design (device emulation)
+       - Test forms and interactions
+       - Verify API integrations by watching network tab
+
+5.5 COMMUNICATION WITH VS CODE EXTENSION
+    - WebSocket on localhost (configurable port)
+    - Shared authentication token
+    - Chrome extension sends: screenshots, DOM data, console logs, test results
+    - VS Code extension sends: browse commands, test scripts, URLs to visit
+
+
+================================================================================
+6. MULTI-AGENT SWARM SYSTEM
+================================================================================
+
+6.1 CONCEPT
+    The swarm is a team of specialized AI agents, each with a defined role,
+    working in parallel on the same project. They communicate through a
+    shared Brain (memory system) and a real-time event bus.
+
+    Unlike sequential AI workflows (ask -> respond -> ask -> respond),
+    ALL agents work SIMULTANEOUSLY. The backend developer doesn't wait for
+    the frontend developer. The tester doesn't wait for deployment. They
+    all work at the same time and coordinate through the Brain.
+
+6.2 AGENT LIFECYCLE
+    1. SPAWN: Orchestrator creates agent with role, context, and tools
+    2. PLAN: Agent reads Brain, understands current state, plans tasks
+    3. EXECUTE: Agent works on tasks (writes code, runs commands, etc.)
+    4. REPORT: Agent updates Brain with results, artifacts, status
+    5. COORDINATE: Agent reads updates from other agents, adjusts plan
+    6. LOOP: Steps 3-5 repeat until agent's tasks are complete
+    7. IDLE: Agent enters monitoring mode, reactivates if needed
+
+6.3 PARALLELISM MODEL
+    - Each agent runs as an independent async task
+    - Agents have their own LLM context window
+    - Agents share state through Brain (not by passing messages directly)
+    - Event bus notifies agents of relevant updates
+    - No agent blocks another agent
+    - Orchestrator resolves conflicts (e.g., two agents editing same file)
+
+6.4 CONFLICT RESOLUTION
+    - File-level locking: Only one agent can write to a file at a time
+    - Merge strategy: If conflict, Brain decides which change wins
+    - Priority chain: PM > Brain > Tester > Backend > Frontend > UX > DevOps
+    - All conflicts logged for user review
+
+6.5 AGENT COUNT & SCALING
+    Default: 6 agents (PM, Backend, Frontend, UX, Tester, DevOps)
+    Expandable: Up to 12 agents for complex projects
+    Possible additional roles:
+    - Database Architect
+    - Security Auditor
+    - Documentation Writer
+    - API Designer
+    - Mobile Developer
+    - Performance Engineer
+
+
+================================================================================
+7. BRAIN & SHARED MEMORY
+================================================================================
+
+7.1 WHAT IS THE BRAIN?
+    The Brain is the central memory and decision-making system. It's NOT
+    an agent itself — it's a shared data structure that all agents read
+    from and write to. Think of it as the project's "single source of truth."
+
+7.2 BRAIN DATA STRUCTURE
+
+    brain/
+    ├── project_spec.json          # Full project specification
+    │   ├── name
+    │   ├── description
+    │   ├── features[]
+    │   ├── tech_stack
+    │   ├── architecture
+    │   └── constraints
+    │
+    ├── architecture.json          # System architecture decisions
+    │   ├── frontend_framework
+    │   ├── backend_framework
+    │   ├── database
+    │   ├── api_design
+    │   ├── folder_structure
+    │   └── deployment_target
+    │
+    ├── task_board.json             # Kanban-style task tracking
+    │   ├── backlog[]
+    │   ├── in_progress[]
+    │   ├── in_review[]
+    │   ├── done[]
+    │   └── blocked[]
+    │
+    ├── api_contracts.json          # API endpoints & schemas
+    │   ├── endpoints[]
+    │   │   ├── method
+    │   │   ├── path
+    │   │   ├── request_schema
+    │   │   ├── response_schema
+    │   │   └── status (implemented/pending)
+    │   └── shared_types{}
+    │
+    ├── agent_states.json           # Current state of each agent
+    │   ├── agent_id
+    │   ├── role
+    │   ├── current_task
+    │   ├── status (working/idle/blocked)
+    │   ├── last_update
+    │   └── files_modified[]
+    │
+    ├── decisions_log.json          # All architectural decisions & why
+    │   ├── decision
+    │   ├── reasoning
+    │   ├── decided_by
+    │   └── timestamp
+    │
+    ├── errors_log.json             # All errors encountered & fixes
+    │   ├── error
+    │   ├── context
+    │   ├── fix_applied
+    │   ├── fixed_by
+    │   └── timestamp
+    │
+    ├── test_results.json           # All test run results
+    │   ├── run_number (1-120+)
+    │   ├── total_tests
+    │   ├── passed
+    │   ├── failed
+    │   ├── failures[]
+    │   └── screenshot_evidence[]
+    │
+    ├── credentials.json            # Reference to ai.env entries
+    │   ├── key_name
+    │   ├── purpose
+    │   ├── created_by
+    │   └── used_in_files[]
+    │
+    └── conversation_history.json   # Full chat history with user
+        ├── messages[]
+        │   ├── role (user/agent/system)
+        │   ├── content
+        │   └── timestamp
+        └── clarifications[]
+
+7.3 PERSISTENCE
+    - Brain is stored in .jeph2sworm/ directory in the project root
+    - Gitignored by default (contains sensitive data references)
+    - Can be exported/imported for project continuity
+    - Backed up at every milestone
+
+7.4 CONTEXT MANAGEMENT
+    - Each agent gets a SUMMARY of the full Brain (not the entire thing)
+    - Brain uses RAG (Retrieval-Augmented Generation) for relevant context
+    - Context window is optimized per-agent (backend agent gets API contracts,
+      frontend agent gets UI specs, etc.)
+    - Stale context is archived, not deleted
+
+
+================================================================================
+8. AGENT ROLES & RESPONSIBILITIES
+================================================================================
+
+ROLE 1: PROJECT MANAGER (PM)
+---------------------------------------------------------------------
+  Purpose:   Overall project coordination, user communication, planning
+  Tasks:
+    - Gather project requirements from user
+    - Break project into milestones and tasks
+    - Assign tasks to agents
+    - Monitor progress and resolve blockers
+    - Communicate status updates to user
+    - Make final decisions on scope and priorities
+  Tools:
+    - Brain read/write
+    - User chat interface
+    - Task board management
+  LLM Usage: Moderate (planning, summarization)
+
+
+ROLE 2: BRAIN / ARCHITECT
+---------------------------------------------------------------------
+  Purpose:   Technical architecture, decision-making, context management
+  Tasks:
+    - Design system architecture
+    - Choose tech stack (or use user-specified)
+    - Define API contracts
+    - Define database schema
+    - Maintain architecture documentation
+    - Resolve technical conflicts between agents
+    - Feed relevant context to each agent
+  Tools:
+    - Brain read/write (primary maintainer)
+    - Architecture diagram generation
+    - Code analysis
+  LLM Usage: High (complex reasoning, architecture decisions)
+
+
+ROLE 3: BACKEND DEVELOPER
+---------------------------------------------------------------------
+  Purpose:   Server-side code, APIs, database, business logic
+  Tasks:
+    - Set up backend project structure
+    - Implement API endpoints
+    - Set up database (schema, migrations, seeds)
+    - Implement authentication/authorization
+    - Implement business logic
+    - Write backend unit tests
+    - Create API documentation
+    - Update API contracts in Brain as endpoints are built
+  Tools:
+    - File system (read/write code)
+    - Terminal (run server, install packages, run migrations)
+    - Brain (read API contracts, write endpoint status)
+  LLM Usage: Very High (code generation, debugging)
+  Sends To:
+    - Frontend: API endpoint URLs, request/response shapes
+    - DevOps: Server requirements, environment variables needed
+    - Tester: API endpoints ready for testing
+
+
+ROLE 4: FRONTEND DEVELOPER
+---------------------------------------------------------------------
+  Purpose:   Client-side code, UI implementation, state management
+  Tasks:
+    - Set up frontend project structure
+    - Implement UI components based on UX designs
+    - Connect to backend APIs
+    - Implement state management
+    - Implement routing
+    - Handle responsive design
+    - Write frontend tests
+    - Implement real-time features (WebSocket, SSE)
+  Tools:
+    - File system (read/write code)
+    - Terminal (run dev server, install packages)
+    - Brain (read UI specs, API contracts)
+    - Browser extension (visual testing)
+  LLM Usage: Very High (code generation, CSS, component logic)
+  Receives From:
+    - Backend: API endpoints and schemas
+    - UX: Component designs, layout specs, color palette
+
+
+ROLE 5: UI/UX DESIGNER
+---------------------------------------------------------------------
+  Purpose:   User interface design, user experience, visual identity
+  Tasks:
+    - Create design system (colors, typography, spacing)
+    - Design page layouts
+    - Create component specifications
+    - Generate logo (if user doesn't provide one)
+    - Design responsive breakpoints
+    - Create user flow diagrams
+    - Review frontend implementation for design accuracy
+  Tools:
+    - Browser extension (access Figma, Canva, design tools)
+    - Brain (write design specs, read project requirements)
+    - Screenshot tool (capture design references)
+  LLM Usage: Moderate (design decisions, CSS generation)
+  Sends To:
+    - Frontend: Component specs, CSS values, asset URLs
+    - PM: Design mockup links/screenshots for user approval
+
+
+ROLE 6: TESTER / QA ENGINEER
+---------------------------------------------------------------------
+  Purpose:   Quality assurance, testing, bug reporting
+  Tasks:
+    - Write unit tests for all code
+    - Write integration tests
+    - Write end-to-end tests
+    - Run tests (120+ cycles)
+    - Report bugs with reproduction steps
+    - Verify bug fixes
+    - Test on deployed environment (via browser extension)
+    - Generate test evidence (screenshots, recordings)
+    - Performance testing
+    - Security testing (basic)
+    - Accessibility testing
+  Tools:
+    - File system (write test files)
+    - Terminal (run test suites)
+    - Browser extension (E2E testing, visual testing)
+    - Brain (read test plans, write results)
+  LLM Usage: High (test generation, bug analysis)
+  Testing Protocol:
+    - Run 1-30: Unit tests (each module individually)
+    - Run 31-60: Integration tests (modules together)
+    - Run 61-90: E2E tests (full user flows)
+    - Run 91-110: Edge case tests (error handling, limits)
+    - Run 111-120: Final regression (everything)
+    - Each run produces evidence (screenshots, logs, pass/fail)
+    - "Done" = ALL 120 runs pass with zero failures
+
+
+ROLE 7: DEVOPS ENGINEER
+---------------------------------------------------------------------
+  Purpose:   Deployment, CI/CD, infrastructure, monitoring
+  Tasks:
+    - Set up Docker/container configuration
+    - Configure CI/CD pipeline
+    - Set up hosting (Vercel, Railway, AWS, etc.)
+    - Configure environment variables
+    - Set up domain/DNS (if applicable)
+    - Implement monitoring/logging
+    - Set up SSL/HTTPS
+    - Database hosting/backups
+    - Deploy application
+  Tools:
+    - File system (Dockerfile, docker-compose, CI configs)
+    - Terminal (docker commands, deploy scripts)
+    - Browser extension (deploy via web dashboards)
+    - Brain (read server requirements, write deploy status)
+  LLM Usage: Moderate (infrastructure decisions, config files)
+  Receives From:
+    - Backend: Server requirements, env vars needed
+    - Frontend: Build configuration, static hosting needs
+
+
+================================================================================
+9. REAL-TIME COMMUNICATION PROTOCOL
+================================================================================
+
+9.1 EVENT BUS
+    All agents communicate through a central event bus. Events are typed
+    and structured. Every event is logged in the Brain.
+
+9.2 EVENT TYPES
+
+    AGENT_STATUS_CHANGED
+      { agent_id, role, new_status, current_task }
+
+    TASK_COMPLETED
+      { agent_id, task_id, result, artifacts[] }
+
+    TASK_BLOCKED
+      { agent_id, task_id, reason, needs_from_agent }
+
+    FILE_CREATED
+      { agent_id, file_path, purpose }
+
+    FILE_MODIFIED
+      { agent_id, file_path, changes_summary }
+
+    API_ENDPOINT_READY
+      { agent_id, method, path, request_schema, response_schema }
+
+    DESIGN_READY
+      { agent_id, component_name, design_url, css_specs }
+
+    TEST_RUN_COMPLETE
+      { agent_id, run_number, passed, failed, evidence[] }
+
+    BUG_REPORTED
+      { agent_id, title, description, steps_to_reproduce, severity }
+
+    BUG_FIXED
+      { agent_id, bug_id, fix_description, files_changed[] }
+
+    DEPLOY_STATUS
+      { agent_id, environment, status, url }
+
+    ERROR_OCCURRED
+      { agent_id, error_type, message, stack_trace }
+
+    USER_MESSAGE
+      { content, requires_response }
+
+    BRAIN_UPDATED
+      { section, changes_summary }
+
+    CREDENTIAL_CREATED
+      { key_name, purpose, created_by }
+
+9.3 MESSAGE FORMAT (WebSocket)
+
+    {
+      "event": "TASK_COMPLETED",
+      "source": "backend-dev",
+      "timestamp": "2026-02-08T10:30:00Z",
+      "data": {
+        "task_id": "task-042",
+        "result": "User authentication API implemented",
+        "artifacts": [
+          "src/api/auth/login.ts",
+          "src/api/auth/register.ts",
+          "src/middleware/auth.ts"
+        ]
+      }
+    }
+
+9.4 UI RENDERING
+    All events are rendered in the VS Code sidebar as a real-time feed.
+    Users see messages like:
+
+    [10:30] Backend Dev: ✅ Auth API complete — POST /api/auth/login ready
+    [10:30] Frontend Dev: 🔄 Connecting login form to /api/auth/login
+    [10:31] Tester: 📝 Writing auth tests...
+    [10:31] DevOps: 🐳 Added JWT_SECRET to environment config
+    [10:32] UX Designer: 🎨 Login page design ready — sending to Frontend
+
+
+================================================================================
+10. LLM PROVIDER INTEGRATION
+================================================================================
+
+10.1 SUPPORTED PROVIDERS (Minimum 5, Target 8+)
+
+    1. OpenAI (GPT-4o, GPT-4.1, o3)
+    2. Anthropic (Claude Opus 4, Claude Sonnet 4)
+    3. xAI (Grok-3)
+    4. Google (Gemini 2.0 Pro, Gemini 2.5)
+    5. DeepSeek (DeepSeek-V3, DeepSeek-R1)
+    6. Mistral (Mistral Large, Codestral)
+    7. Meta (Llama 4 via Together/Groq)
+    8. Cohere (Command R+)
+
+10.2 LLM ROUTER
+    The LLM Router decides which provider/model to use for each agent
+    and each task. Strategy:
+
+    - Coding tasks: Use best code model (GPT-4.1, Claude Opus, DeepSeek)
+    - Planning tasks: Use best reasoning model (o3, Claude Opus)
+    - Design tasks: Use multimodal model (GPT-4o, Gemini)
+    - Quick tasks: Use fastest model to save tokens
+    - Fallback: If primary provider fails, auto-switch to backup
+
+10.3 API KEY MANAGEMENT
+    - User provides API key(s) during setup
+    - Keys stored in VS Code SecretStorage (encrypted)
+    - Can use multiple providers simultaneously
+    - Token usage tracked per agent, per session
+    - Budget limits configurable
+
+10.4 TOKEN OPTIMIZATION
+    - Context compression before LLM calls
+    - Caching for repeated queries
+    - Incremental updates (don't re-send entire context)
+    - Smart truncation (keep most relevant context)
+    - Cost estimation before expensive operations
+
+
+================================================================================
+11. SECURITY & RULES ENGINE
+================================================================================
+
+11.1 CORE RULES (HARD-CODED, CANNOT BE OVERRIDDEN)
+
+    RULE 1: NEVER DELETE USER DATA
+      - Agents can create and modify files
+      - Agents CANNOT delete files outside the project directory
+      - No rm -rf, no format, no destructive operations on system files
+
+    RULE 2: NEVER CORRUPT PROJECT
+      - Every file write is preceded by a backup
+      - Git commit at every milestone
+      - Rollback capability for every change
+
+    RULE 3: NO HALLUCINATION IN CRITICAL PATHS
+      - All API endpoints must be verified (actually callable)
+      - All imports must resolve (no fake packages)
+      - All environment variables must have values
+      - All URLs must be valid
+      - Tester validates all claims
+
+    RULE 4: STAY IN SCOPE
+      - Agents only work on the described project
+      - No accessing files outside workspace
+      - No network requests to unauthorized domains
+      - No installing system-level packages without user's sudo password
+
+    RULE 5: TRANSPARENT OPERATIONS
+      - Every terminal command logged
+      - Every file change logged
+      - Every LLM call logged
+      - Every decision documented in Brain
+      - User can audit everything at any time
+
+    RULE 6: CREDENTIAL SECURITY
+      - Generated passwords must be 32+ characters
+      - Must include: uppercase, lowercase, numbers, symbols
+      - Strength equivalent to bitcoin address entropy
+      - All secrets stored ONLY in ai.env
+      - Never hardcoded in source files
+      - ai.env added to .gitignore automatically
+
+    RULE 7: NO EXTERNAL DATA EXFILTRATION
+      - Agents never send project code to external services
+        (except the LLM provider for inference)
+      - No telemetry without consent
+      - No third-party API calls without user knowledge
+
+    RULE 8: GRACEFUL FAILURE
+      - If an agent errors, it reports to Brain and retries
+      - If retry fails 3x, escalate to PM
+      - Never leave half-written files
+      - Never crash silently
+
+11.2 RULES ENGINE IMPLEMENTATION
+    - Rules are checked BEFORE every action (pre-execution hook)
+    - Rules are checked AFTER every action (post-execution validation)
+    - Rules violations are logged and blocked
+    - User is notified of any rule violations
+
+
+================================================================================
+12. AI.ENV — CREDENTIAL MANAGEMENT
+================================================================================
+
+12.1 WHAT IS AI.ENV?
+    ai.env is a special environment file created and managed by the swarm.
+    It contains ALL credentials, secrets, and sensitive configuration
+    generated during project development.
+
+12.2 FORMAT
+
+    # ================================================
+    # ai.env — Auto-generated by Jeph2Sworm
+    # ================================================
+    # WARNING: This file contains sensitive credentials
+    # DO NOT commit to version control
+    # ================================================
+
+    # Database
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_NAME=facebook_clone_db
+    DB_USER=fb_admin
+    DB_PASSWORD=kX9#mQ$vL2@nR7!pW4&jY6*cF8^hT3
+
+    # JWT Authentication
+    JWT_SECRET=aB3$dE5&gH7*jK9!mN1@pQ3#sU5^wY7
+    JWT_REFRESH_SECRET=zX2$cV4&bN6*mL8!kJ0@hG2#fD4^sA6
+
+    # API Keys (third-party services)
+    STRIPE_SECRET_KEY=sk_live_...
+    SENDGRID_API_KEY=SG...
+
+    # Admin
+    ADMIN_EMAIL=admin@project.com
+    ADMIN_PASSWORD=qW8#eR0$tY2&uI4*oP6!aS8@dF0#gH2
+
+    # Session
+    SESSION_SECRET=lK7$jH5&gF3*dS1!aP9@oI7#uY5^tR3
+
+12.3 SECURITY RULES FOR GENERATED PASSWORDS
+    - Minimum 32 characters
+    - Must pass zxcvbn strength check (score >= 4)
+    - No dictionary words
+    - No sequential characters
+    - No repeated patterns
+    - Entropy >= 128 bits (comparable to bitcoin private key)
+    - Each password unique (no reuse across services)
+
+12.4 AI.ENV MANAGEMENT
+    - Auto-created at project start
+    - Auto-added to .gitignore
+    - Referenced in code via process.env / os.environ
+    - Viewer in VS Code extension (masked by default, click to reveal)
+    - Export function for production deployment
+    - Rotation capability (regenerate all passwords)
+
+
+================================================================================
+13. BROWSER-USE INTEGRATION
+================================================================================
+
+13.1 HOW IT WORKS
+    browser-use is a Python library that enables AI agents to control
+    web browsers. We integrate it as the backend engine for the Chrome
+    extension.
+
+    Flow:
+    1. Agent (e.g., Tester) needs to test deployed website
+    2. Agent sends command to Browser Controller
+    3. Browser Controller uses browser-use to:
+       a. Launch/connect to Chrome instance
+       b. Navigate to URL
+       c. Interact with page (click, type, scroll)
+       d. Capture screenshot/recording
+       e. Read DevTools data
+    4. Results sent back to agent via event bus
+    5. Agent processes results and updates Brain
+
+13.2 BROWSER-USE CAPABILITIES WE USE
+
+    - Agent class: Main agent for browser automation
+    - Browser class: Browser instance management
+    - Multi-provider LLM support (aligns with our LLM Router)
+    - Custom tools/actions
+    - Screenshot capture
+    - DOM element extraction
+    - Click, type, scroll actions
+    - Navigation
+    - Tab management
+
+13.3 CUSTOM BROWSER ACTIONS WE BUILD ON TOP
+
+    - screen_record(duration): Record browser screen for N seconds
+    - devtools_console_logs(): Get all console output
+    - devtools_network(): Get network requests/responses
+    - devtools_performance(): Get performance metrics
+    - download_asset(url, path): Download file to project
+    - gui_design_tool(tool, action): Interact with design tools
+    - fill_deployment_form(provider, config): Auto-deploy via web UI
+    - visual_regression(baseline, current): Compare screenshots
+    - accessibility_audit(url): Run accessibility checks
+
+13.4 CHROME EXTENSION <-> BROWSER-USE BRIDGE
+    - Chrome extension connects to Python backend via WebSocket
+    - Python backend runs browser-use agent
+    - Chrome extension provides additional capabilities:
+      * Native screenshot (higher quality)
+      * MediaRecorder API (screen recording)
+      * DevTools panels (deeper inspection)
+      * Extension popup (user controls)
+    - Two-way sync: browser-use actions reflected in Chrome extension UI
+
+
+================================================================================
+14. FILE SYSTEM & TERMINAL ACCESS
+================================================================================
+
+14.1 FILE SYSTEM OPERATIONS
+    The swarm has FULL read/write access to the workspace directory.
+
+    Operations:
+    - create_file(path, content)
+    - read_file(path)
+    - update_file(path, changes)
+    - create_directory(path)
+    - copy_file(src, dst)
+    - move_file(src, dst)
+    - list_directory(path)
+    - file_exists(path)
+    - file_search(pattern)
+    - git_commit(message)
+    - git_branch(name)
+
+    Restrictions:
+    - CANNOT access files outside workspace root
+    - CANNOT delete files (only archive/rename)
+    - Auto-backup before any modification
+    - All operations logged
+
+14.2 TERMINAL OPERATIONS
+    Each agent can run terminal commands in isolated shell sessions.
+
+    Operations:
+    - run_command(cmd): Execute and return output
+    - run_background(cmd): Start background process (servers)
+    - install_package(manager, package): npm/pip/apt install
+    - run_tests(framework): Execute test suite
+    - build_project(): Run build command
+    - start_server(): Start dev server
+    - docker_compose(action): Docker operations
+    - git(action): Git operations
+
+    Special:
+    - sudo operations use stored machine password
+    - Background processes tracked and manageable
+    - Output streamed to Brain for context
+    - Error output triggers automatic debugging
+
+
+================================================================================
+15. TESTING PHILOSOPHY (120x TEST CYCLES)
+================================================================================
+
+15.1 WHY 120 CYCLES?
+    Most AI-generated code is tested 0-1 times. We test 120+ times because:
+    - First 30 runs catch obvious bugs
+    - Runs 31-60 catch integration issues
+    - Runs 61-90 catch edge cases
+    - Runs 91-110 catch rare conditions
+    - Runs 111-120 confirm everything works together
+    - More runs = more confidence = production-ready code
+
+15.2 TEST TYPES
+
+    UNIT TESTS (Runs 1-30)
+    - Every function tested individually
+    - Every edge case covered
+    - Mock external dependencies
+    - Aim: 95%+ code coverage
+
+    INTEGRATION TESTS (Runs 31-60)
+    - API endpoints tested with real database
+    - Frontend-backend integration
+    - Third-party service integration
+    - Database operations (CRUD, transactions)
+
+    END-TO-END TESTS (Runs 61-90)
+    - Full user flows in browser (via browser-use)
+    - Login -> Navigate -> Action -> Verify
+    - Multi-user scenarios
+    - Cross-browser/device testing
+
+    EDGE CASE TESTS (Runs 91-110)
+    - Invalid inputs
+    - Network failures
+    - Concurrent users
+    - Large data sets
+    - Empty states
+    - Permission violations
+
+    REGRESSION TESTS (Runs 111-120)
+    - All previous tests re-run
+    - Visual regression (screenshot comparison)
+    - Performance regression
+    - Security regression
+
+15.3 EVIDENCE COLLECTION
+    Every test run produces:
+    - Test runner output (pass/fail per test)
+    - Screenshots (if browser-based)
+    - Console logs
+    - Network request logs
+    - Code coverage report
+    - Performance metrics
+    - Timestamp and run number
+    All stored in .jeph2sworm/test_evidence/
+
+15.4 DONE CRITERIA
+    Project is "DONE" when:
+    [x] All 120 test runs pass with zero failures
+    [x] Code coverage >= 90%
+    [x] No critical/high security vulnerabilities
+    [x] Performance within acceptable bounds
+    [x] Visual regression 0% different from design
+    [x] All API endpoints return correct responses
+    [x] All user flows complete successfully
+    [x] Deployment successful and verified
+    [x] ai.env complete with all credentials
+    [x] Documentation generated
+
+
+================================================================================
+16. USER ONBOARDING FLOW
+================================================================================
+
+STEP 1: INSTALL EXTENSION
+  User installs "jeph2sworm" from VS Code Marketplace
+
+STEP 2: WELCOME SCREEN
+  Webview panel shows:
+  - Welcome to Jeph2Sworm
+  - "Your AI Development Swarm"
+  - Setup wizard button
+
+STEP 3: API KEY SETUP
+  User connects their preferred LLM provider:
+  - "Select your AI provider" (dropdown)
+  - "Enter your API key" (secure input)
+  - "Test connection" (verify key works)
+  - Can add multiple providers
+
+STEP 4: OPTIONAL — MACHINE PASSWORD
+  "To install system packages, we need your password"
+  - Stored in VS Code SecretStorage (encrypted)
+  - Can skip (agents will ask when needed)
+
+STEP 5: OPTIONAL — CHROME EXTENSION
+  "Install our Chrome extension for browser testing"
+  - Link to Chrome Web Store
+  - Connection verification
+
+STEP 6: START PROJECT
+  User clicks "Start New Project" in the sidebar
+  Chat interface opens
+
+STEP 7: IDEA GATHERING
+  The PM agent starts a structured conversation:
+  
+  PM: "Welcome! Let's build something amazing. What's your project idea?"
+  User: "I want to build a Facebook-like social media app"
+  
+  PM: "Great! Let me ask a few questions to understand your vision:"
+  PM: "1. What's the name of your app?"
+  PM: "2. Who is your target audience?"
+  PM: "3. What are the top 5 features you want?"
+  PM: "4. Do you have a logo or brand colors?"
+  PM: "5. What tech stack do you prefer? (or let us decide)"
+  PM: "6. Where should we deploy it?"
+  PM: "7. Do you need user authentication?"
+  PM: "8. Do you need payments?"
+  PM: "9. Any third-party integrations?"
+  PM: "10. Any specific design style? (modern, minimal, bold)"
+
+STEP 8: PLANNING PHASE
+  User answers questions. PM consolidates. Brain agent designs architecture.
+  User sees: "Planning your project... (estimated 2-3 minutes)"
+
+STEP 9: PLAN APPROVAL
+  PM presents the plan to user:
+  - Architecture overview
+  - Feature list with priorities
+  - Tech stack
+  - Estimated timeline
+  - Agent assignments
+  User can approve, modify, or ask questions.
+
+STEP 10: BUILD PHASE
+  User approves. Swarm activates.
+  All 6+ agents start working simultaneously.
+  User watches real-time progress in sidebar.
+
+STEP 11: REVIEW & TEST PHASE
+  Tester runs 120 test cycles.
+  User sees test results dashboard.
+  Any failures auto-fixed and re-tested.
+
+STEP 12: DELIVERY
+  Project complete. User gets:
+  - Fully built application
+  - All tests passing
+  - Deployed and accessible
+  - ai.env with all credentials
+  - Documentation
+  - Git history with meaningful commits
+
+
+================================================================================
+17. TECH STACK
+================================================================================
+
+VS CODE EXTENSION:
+  - Language:           TypeScript
+  - Framework:          VS Code Extension API
+  - UI:                 VS Code Webview (React)
+  - State Management:   Zustand / Context API
+  - Communication:      WebSocket (ws library)
+  - Secret Storage:     VS Code SecretStorage API
+  - Build:              esbuild / webpack
+  - Package Manager:    npm / pnpm
+
+CHROME EXTENSION:
+  - Language:           TypeScript
+  - Framework:          Chrome Extension Manifest V3
+  - UI:                 React (popup & side panel)
+  - Communication:      Chrome Messaging API + WebSocket
+  - Build:              Vite / webpack
+  - DevTools:           Chrome DevTools Protocol (CDP)
+  - Recording:          MediaRecorder API
+
+AGENT BACKEND (jeph2sworm-core):
+  - Language:           Python 3.11+
+  - Framework:          FastAPI (WebSocket server)
+  - Agent Framework:    Custom (inspired by AutoGen, CrewAI)
+  - Browser Automation: browser-use library
+  - LLM Integration:    LiteLLM (unified API for all providers)
+  - Memory/RAG:         ChromaDB / FAISS (vector store)
+  - Task Queue:         asyncio (native)
+  - File Operations:    aiofiles
+  - Terminal:           asyncio subprocess
+  - Password Gen:       secrets + zxcvbn
+  - Logging:            structlog
+
+DATABASE (for Brain persistence):
+  - Primary:            SQLite (local, no server needed)
+  - Vector Store:       ChromaDB (for RAG/context retrieval)
+  - Cache:              In-memory dict (for active session)
+
+TESTING:
+  - Python:             pytest
+  - JavaScript:         Jest / Vitest
+  - E2E:                Playwright (via browser-use)
+  - Coverage:           Istanbul / coverage.py
+  - Visual:             Screenshot diffing
+
+DEVOPS:
+  - Container:          Docker
+  - CI/CD:              GitHub Actions (generated per project)
+  - Deploy:             Vercel / Railway / AWS (agent decides)
+
+
+================================================================================
+18. DATABASE & STORAGE
+================================================================================
+
+18.1 EXTENSION STORAGE (VS Code)
+    - globalState: Extension-level persistent storage
+    - workspaceState: Workspace-level persistent storage
+    - SecretStorage: Encrypted API keys and passwords
+    - File system: .jeph2sworm/ directory for Brain data
+
+18.2 BRAIN STORAGE
+    Location: {workspace}/.jeph2sworm/
+    Format: JSON files (human-readable, git-friendly)
+    Backup: Auto-backup at milestones to .jeph2sworm/backups/
+
+18.3 VECTOR STORE (for RAG)
+    - ChromaDB embedded instance
+    - Stores: code snippets, documentation chunks, conversation history
+    - Used for: context retrieval when agent needs relevant information
+    - Location: .jeph2sworm/vectordb/
+
+18.4 TEST EVIDENCE STORAGE
+    Location: .jeph2sworm/test_evidence/
+    Contains:
+    - Screenshots (PNG)
+    - Screen recordings (WebM)
+    - Test reports (JSON, HTML)
+    - Console logs (TXT)
+    - Coverage reports (HTML, JSON)
+
+
+================================================================================
+19. PROJECT STRUCTURE — VS CODE EXTENSION
+================================================================================
+
+jeph2sworm-vscode/
+├── .vscode/
+│   ├── launch.json              # Debug configuration
+│   └── settings.json
+│
+├── src/
+│   ├── extension.ts             # Extension entry point
+│   │
+│   ├── core/
+│   │   ├── orchestrator.ts      # Agent orchestration
+│   │   ├── event-bus.ts         # Event bus implementation
+│   │   ├── brain-client.ts      # Brain read/write client
+│   │   ├── llm-router.ts        # LLM provider routing
+│   │   ├── rules-engine.ts      # Safety rules enforcement
+│   │   ├── file-manager.ts      # File system operations
+│   │   ├── terminal-manager.ts  # Terminal command execution
+│   │   └── credential-manager.ts # ai.env management
+│   │
+│   ├── agents/
+│   │   ├── base-agent.ts        # Base agent class
+│   │   ├── pm-agent.ts          # Project Manager
+│   │   ├── brain-agent.ts       # Brain/Architect
+│   │   ├── backend-agent.ts     # Backend Developer
+│   │   ├── frontend-agent.ts    # Frontend Developer
+│   │   ├── ux-agent.ts          # UI/UX Designer
+│   │   ├── tester-agent.ts      # QA/Tester
+│   │   └── devops-agent.ts      # DevOps Engineer
+│   │
+│   ├── providers/
+│   │   ├── base-provider.ts     # Base LLM provider interface
+│   │   ├── openai-provider.ts
+│   │   ├── anthropic-provider.ts
+│   │   ├── grok-provider.ts
+│   │   ├── gemini-provider.ts
+│   │   ├── deepseek-provider.ts
+│   │   ├── mistral-provider.ts
+│   │   ├── llama-provider.ts
+│   │   └── cohere-provider.ts
+│   │
+│   ├── views/
+│   │   ├── sidebar/
+│   │   │   ├── ChatView.tsx         # Main chat interface
+│   │   │   ├── AgentDashboard.tsx   # Agent status view
+│   │   │   ├── ProgressView.tsx     # Overall progress
+│   │   │   ├── EventFeed.tsx        # Real-time event feed
+│   │   │   └── FileChangeLog.tsx    # Files being modified
+│   │   │
+│   │   ├── panels/
+│   │   │   ├── AgentConversation.tsx # Agent-to-agent chat viewer
+│   │   │   ├── TestDashboard.tsx     # Test results
+│   │   │   ├── DeployStatus.tsx      # Deployment status
+│   │   │   ├── AiEnvViewer.tsx       # ai.env viewer
+│   │   │   ├── BrainViewer.tsx       # Brain memory viewer
+│   │   │   └── SetupWizard.tsx       # First-run setup
+│   │   │
+│   │   └── components/
+│   │       ├── AgentAvatar.tsx
+│   │       ├── MessageBubble.tsx
+│   │       ├── ProgressBar.tsx
+│   │       ├── StatusBadge.tsx
+│   │       ├── CodeBlock.tsx
+│   │       └── SecureInput.tsx
+│   │
+│   ├── services/
+│   │   ├── websocket-service.ts      # WebSocket to Python backend
+│   │   ├── browser-bridge.ts         # Chrome extension communication
+│   │   ├── git-service.ts            # Git operations
+│   │   ├── token-tracker.ts          # Token usage tracking
+│   │   └── backup-service.ts         # Brain backup
+│   │
+│   ├── utils/
+│   │   ├── password-generator.ts     # Secure password generation
+│   │   ├── context-compressor.ts     # LLM context optimization
+│   │   ├── logger.ts                 # Structured logging
+│   │   └── validators.ts             # Input validation
+│   │
+│   └── types/
+│       ├── agent.types.ts
+│       ├── brain.types.ts
+│       ├── event.types.ts
+│       ├── llm.types.ts
+│       └── project.types.ts
+│
+├── webview-ui/                  # React app for webviews
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── index.tsx
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── stores/
+│   │   └── styles/
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── media/                       # Icons, images
+│   ├── icon.png
+│   ├── icon-dark.png
+│   └── icon-light.png
+│
+├── package.json                 # Extension manifest
+├── tsconfig.json
+├── webpack.config.js
+├── .vscodeignore
+├── CHANGELOG.md
+├── README.md
+└── LICENSE
+
+
+================================================================================
+20. PROJECT STRUCTURE — CHROME EXTENSION
+================================================================================
+
+jeph2sworm-browser/
+├── src/
+│   ├── manifest.json              # Chrome Extension Manifest V3
+│   │
+│   ├── background/
+│   │   ├── service-worker.ts      # Background service worker
+│   │   ├── websocket-client.ts    # WebSocket to Python backend
+│   │   ├── command-queue.ts       # Queued browser commands
+│   │   └── tab-manager.ts         # Tab lifecycle management
+│   │
+│   ├── content/
+│   │   ├── content-script.ts      # Injected into pages
+│   │   ├── dom-extractor.ts       # Extract DOM information
+│   │   ├── element-highlighter.ts # Visual element highlighting
+│   │   ├── form-filler.ts         # Automated form filling
+│   │   └── screenshot.ts          # Screenshot capture
+│   │
+│   ├── devtools/
+│   │   ├── devtools.html
+│   │   ├── devtools.ts            # DevTools page
+│   │   ├── panel.html
+│   │   ├── panel.ts               # Custom DevTools panel
+│   │   ├── network-monitor.ts     # Network request capture
+│   │   ├── console-capture.ts     # Console log capture
+│   │   └── performance.ts         # Performance metrics
+│   │
+│   ├── sidepanel/
+│   │   ├── sidepanel.html
+│   │   ├── SidePanel.tsx          # Side panel React app
+│   │   ├── TaskStatus.tsx         # Current browser task
+│   │   └── ScreenshotPreview.tsx  # Screenshot preview
+│   │
+│   ├── popup/
+│   │   ├── popup.html
+│   │   ├── Popup.tsx              # Extension popup
+│   │   ├── ConnectionStatus.tsx   # Connection to VS Code
+│   │   └── QuickActions.tsx       # Quick action buttons
+│   │
+│   ├── recorder/
+│   │   ├── screen-recorder.ts     # MediaRecorder integration
+│   │   └── recording-manager.ts   # Start/stop/save recordings
+│   │
+│   ├── utils/
+│   │   ├── messaging.ts           # Chrome messaging helpers
+│   │   ├── storage.ts             # Chrome storage wrapper
+│   │   └── logger.ts              # Logging utilities
+│   │
+│   └── types/
+│       ├── commands.types.ts
+│       ├── messages.types.ts
+│       └── devtools.types.ts
+│
+├── public/
+│   ├── icons/
+│   │   ├── icon-16.png
+│   │   ├── icon-48.png
+│   │   └── icon-128.png
+│   └── styles/
+│       └── content.css
+│
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
+├── README.md
+└── LICENSE
+
+
+================================================================================
+21. PYTHON BACKEND STRUCTURE — JEPH2SWORM-CORE
+================================================================================
+
+jeph2sworm-core/
+├── pyproject.toml                    # Python project config
+├── requirements.txt
+│
+├── jeph2sworm/
+│   ├── __init__.py
+│   ├── main.py                      # FastAPI app entry point
+│   ├── config.py                    # Configuration management
+│   │
+│   ├── server/
+│   │   ├── __init__.py
+│   │   ├── websocket_server.py      # WebSocket server (FastAPI)
+│   │   ├── routes.py                # REST API routes
+│   │   └── middleware.py            # Auth, logging middleware
+│   │
+│   ├── orchestrator/
+│   │   ├── __init__.py
+│   │   ├── swarm_manager.py         # Create/manage agent swarm
+│   │   ├── task_scheduler.py        # Task assignment & scheduling
+│   │   ├── conflict_resolver.py     # File/resource conflicts
+│   │   └── lifecycle.py             # Agent lifecycle management
+│   │
+│   ├── agents/
+│   │   ├── __init__.py
+│   │   ├── base_agent.py            # Abstract base agent
+│   │   ├── pm_agent.py              # Project Manager
+│   │   ├── brain_agent.py           # Brain/Architect
+│   │   ├── backend_agent.py         # Backend Developer
+│   │   ├── frontend_agent.py        # Frontend Developer
+│   │   ├── ux_agent.py              # UI/UX Designer
+│   │   ├── tester_agent.py          # QA/Tester
+│   │   └── devops_agent.py          # DevOps Engineer
+│   │
+│   ├── brain/
+│   │   ├── __init__.py
+│   │   ├── memory.py                # Brain data structure
+│   │   ├── context_manager.py       # Per-agent context extraction
+│   │   ├── rag_engine.py            # RAG for context retrieval
+│   │   ├── vector_store.py          # ChromaDB integration
+│   │   ├── task_board.py            # Task management
+│   │   └── decision_log.py          # Decision tracking
+│   │
+│   ├── llm/
+│   │   ├── __init__.py
+│   │   ├── router.py                # LLM provider routing
+│   │   ├── base_provider.py         # Abstract provider
+│   │   ├── openai_provider.py
+│   │   ├── anthropic_provider.py
+│   │   ├── grok_provider.py
+│   │   ├── gemini_provider.py
+│   │   ├── deepseek_provider.py
+│   │   ├── mistral_provider.py
+│   │   ├── llama_provider.py
+│   │   ├── cohere_provider.py
+│   │   ├── token_tracker.py         # Usage tracking
+│   │   └── context_optimizer.py     # Context compression
+│   │
+│   ├── tools/
+│   │   ├── __init__.py
+│   │   ├── file_system.py           # File operations
+│   │   ├── terminal.py              # Command execution
+│   │   ├── git_ops.py               # Git operations
+│   │   ├── package_manager.py       # npm/pip/apt operations
+│   │   ├── credential_generator.py  # Secure password generation
+│   │   └── ai_env_manager.py        # ai.env operations
+│   │
+│   ├── browser/
+│   │   ├── __init__.py
+│   │   ├── controller.py            # Browser control orchestration
+│   │   ├── browser_use_bridge.py    # browser-use library wrapper
+│   │   ├── screenshot.py            # Screenshot operations
+│   │   ├── screen_recorder.py       # Recording operations
+│   │   ├── devtools_client.py       # DevTools protocol client
+│   │   ├── visual_regression.py     # Screenshot comparison
+│   │   └── accessibility.py         # A11y testing
+│   │
+│   ├── events/
+│   │   ├── __init__.py
+│   │   ├── event_bus.py             # Central event bus
+│   │   ├── event_types.py           # Event type definitions
+│   │   └── event_logger.py          # Event persistence
+│   │
+│   ├── security/
+│   │   ├── __init__.py
+│   │   ├── rules_engine.py          # Core rules enforcement
+│   │   ├── action_validator.py      # Pre/post action validation
+│   │   ├── file_guard.py            # File system protection
+│   │   └── credential_vault.py      # Credential encryption
+│   │
+│   └── utils/
+│       ├── __init__.py
+│       ├── logger.py                # Structured logging
+│       ├── helpers.py               # Common utilities
+│       └── validators.py            # Input validation
+│
+├── tests/
+│   ├── test_agents/
+│   ├── test_brain/
+│   ├── test_llm/
+│   ├── test_tools/
+│   ├── test_browser/
+│   ├── test_security/
+│   └── conftest.py
+│
+└── docker/
+    ├── Dockerfile
+    └── docker-compose.yml
+
+
+================================================================================
+22. API DESIGN (WebSocket + REST)
+================================================================================
+
+22.1 REST ENDPOINTS (Backend Health & Config)
+
+  GET    /api/health                    # Backend health check
+  POST   /api/config/provider           # Set LLM provider
+  GET    /api/config/providers          # List available providers
+  POST   /api/config/api-key            # Store API key
+  GET    /api/session/status            # Current session status
+  POST   /api/session/start             # Start new project session
+  POST   /api/session/stop              # Stop all agents
+  GET    /api/brain/summary             # Get Brain summary
+  GET    /api/brain/tasks               # Get task board
+  GET    /api/agents                    # List all agents and status
+  GET    /api/agents/{id}/logs          # Get agent logs
+  GET    /api/tests/results             # Get test results
+  GET    /api/tests/evidence/{run}      # Get evidence for a test run
+  GET    /api/credentials               # List credentials (masked)
+  POST   /api/credentials/reveal        # Reveal a credential
+  GET    /api/tokens/usage              # Token usage stats
+
+22.2 WEBSOCKET EVENTS (Real-time Communication)
+
+  Client -> Server:
+    USER_MESSAGE         # User sends a chat message
+    START_PROJECT        # User approves plan, start building
+    PAUSE_AGENTS         # Pause all agents
+    RESUME_AGENTS        # Resume all agents
+    APPROVE_PLAN         # User approves project plan
+    MODIFY_PLAN          # User modifies project plan
+    CONNECT_BROWSER      # Chrome extension connects
+
+  Server -> Client:
+    AGENT_MESSAGE        # Agent sends message to user
+    AGENT_STATUS         # Agent status update
+    EVENT_FEED           # Real-time event bus message
+    FILE_CHANGED         # File created/modified
+    TEST_RESULT          # Test run result
+    PROGRESS_UPDATE      # Overall progress %
+    ERROR                # Error occurred
+    REQUEST_INPUT        # Agent needs user input
+    BUILD_COMPLETE       # Project build complete
+    DEPLOY_COMPLETE      # Deployment complete
+    SCREENSHOT           # Browser screenshot
+    RECORDING_READY      # Screen recording saved
+
+
+================================================================================
+23. DEVELOPMENT PHASES & MILESTONES
+================================================================================
+
+PHASE 1: FOUNDATION (Weeks 1-4)
+-----------------------------------------------
+  Week 1: Project Setup
+    [x] Initialize VS Code extension project
+    [x] Initialize Chrome extension project
+    [x] Initialize Python backend project
+    [x] Set up monorepo structure
+    [x] Configure build tools (webpack, vite, pyproject)
+    [x] Set up CI/CD pipeline
+
+  Week 2: Core Infrastructure
+    [ ] Implement WebSocket server (FastAPI)
+    [ ] Implement event bus
+    [ ] Implement basic Brain data structure
+    [ ] Implement LLM Router with OpenAI provider
+    [ ] Set up VS Code extension skeleton (sidebar, commands)
+
+  Week 3: Agent Framework
+    [ ] Implement base agent class
+    [ ] Implement PM agent (chat with user)
+    [ ] Implement Brain agent (architecture)
+    [ ] Implement file system tool
+    [ ] Implement terminal tool
+
+  Week 4: Basic Chat Flow
+    [ ] Complete sidebar chat UI
+    [ ] PM gathers project requirements
+    [ ] Brain generates project plan
+    [ ] User approves/modifies plan
+    [ ] Basic file creation from plan
+
+
+PHASE 2: AGENT SWARM (Weeks 5-8)
+-----------------------------------------------
+  Week 5: Developer Agents
+    [ ] Implement Backend agent
+    [ ] Implement Frontend agent
+    [ ] Agent file writing capability
+    [ ] Agent terminal command capability
+
+  Week 6: Support Agents
+    [ ] Implement UX agent
+    [ ] Implement Tester agent
+    [ ] Implement DevOps agent
+    [ ] Inter-agent communication via event bus
+
+  Week 7: Orchestration
+    [ ] Implement swarm manager
+    [ ] Parallel agent execution
+    [ ] Conflict resolution
+    [ ] Real-time UI updates
+    [ ] Agent dashboard
+
+  Week 8: Multi-Provider LLM
+    [ ] Anthropic provider
+    [ ] Grok provider
+    [ ] Gemini provider
+    [ ] DeepSeek provider
+    [ ] Provider fallback logic
+
+
+PHASE 3: BROWSER INTEGRATION (Weeks 9-12)
+-----------------------------------------------
+  Week 9: Chrome Extension Core
+    [ ] Chrome extension manifest & structure
+    [ ] Content script (DOM interaction)
+    [ ] Background service worker
+    [ ] WebSocket connection to backend
+
+  Week 10: browser-use Integration
+    [ ] browser-use bridge implementation
+    [ ] Screenshot capability
+    [ ] Page navigation & interaction
+    [ ] DevTools data extraction
+
+  Week 11: Advanced Browser Features
+    [ ] Screen recording
+    [ ] Visual regression testing
+    [ ] GUI tool interaction
+    [ ] Asset downloading
+
+  Week 12: E2E Testing via Browser
+    [ ] Tester agent uses browser for E2E tests
+    [ ] Screenshot evidence collection
+    [ ] Live website testing
+    [ ] Deployment verification via browser
+
+
+PHASE 4: SECURITY & POLISH (Weeks 13-16)
+-----------------------------------------------
+  Week 13: Security
+    [ ] Rules engine implementation
+    [ ] Action validator (pre/post hooks)
+    [ ] File guard (prevent destructive operations)
+    [ ] Credential vault (encryption)
+    [ ] ai.env management
+
+  Week 14: Credential Generation
+    [ ] Secure password generator (128-bit entropy)
+    [ ] ai.env auto-creation and management
+    [ ] Credential rotation
+    [ ] ai.env viewer in VS Code
+
+  Week 15: Testing Framework
+    [ ] 120-cycle test runner
+    [ ] Test evidence storage
+    [ ] Test results dashboard
+    [ ] Auto-fix on test failure
+    [ ] Coverage tracking
+
+  Week 16: Polish & UX
+    [ ] Setup wizard
+    [ ] Progress indicators
+    [ ] Error handling & recovery
+    [ ] Token usage dashboard
+    [ ] Documentation
+
+
+PHASE 5: PRODUCTION (Weeks 17-20)
+-----------------------------------------------
+  Week 17: End-to-End Testing
+    [ ] Internal testing with real projects
+    [ ] Fix bugs and edge cases
+    [ ] Performance optimization
+    [ ] Token usage optimization
+
+  Week 18: Beta Testing
+    [ ] Private beta with select users
+    [ ] Feedback collection
+    [ ] Bug fixes
+    [ ] UI/UX improvements
+
+  Week 19: Marketplace Preparation
+    [ ] VS Code Marketplace listing
+    [ ] Chrome Web Store listing
+    [ ] Documentation website
+    [ ] Demo videos
+
+  Week 20: Launch
+    [ ] Public release
+    [ ] Marketing
+    [ ] Community setup (Discord)
+    [ ] Support system
+
+
+================================================================================
+24. MONETIZATION & DISTRIBUTION
+================================================================================
+
+24.1 DISTRIBUTION
+    - VS Code Marketplace: Free extension
+    - Chrome Web Store: Free extension
+    - Python backend: Bundled with VS Code extension (auto-installed)
+
+24.2 PRICING MODEL (Options)
+
+    OPTION A: FREEMIUM
+      Free Tier:
+        - 3 projects per month
+        - Basic agents (PM, Backend, Frontend)
+        - 1 LLM provider
+        - 30 test cycles
+      
+      Pro Tier ($29/month):
+        - Unlimited projects
+        - All 7+ agents
+        - All LLM providers
+        - 120+ test cycles
+        - Browser automation
+        - Priority support
+
+      Team Tier ($99/month):
+        - Everything in Pro
+        - Team collaboration
+        - Shared Brain
+        - Custom agents
+        - API access
+
+    OPTION B: PAY-PER-PROJECT
+      - $5 per project (user brings their own LLM API key)
+      - $0 for open-source projects
+
+    OPTION C: FULLY FREE (Open Source)
+      - BYOK (Bring Your Own Key)
+      - Monetize via consulting/support
+
+24.3 MARKETPLACE LISTING
+
+    Name:            Jeph2Sworm — AI Development Swarm
+    Tagline:         "From idea to production. Automatically."
+    Category:        AI, Programming Languages, Testing
+    Keywords:        ai, swarm, autonomous, coding, agent, copilot
+    Icon:            Custom icon (swarm/bee theme)
+
+
+================================================================================
+25. RISKS & MITIGATIONS
+================================================================================
+
+RISK 1: Token Cost Explosion
+  Impact: High
+  Mitigation:
+    - Context compression
+    - Smart caching
+    - Model selection (use cheaper models for simple tasks)
+    - Token budget per project with warnings
+    - User-controlled spending limits
+
+RISK 2: Hallucination in Code
+  Impact: Critical
+  Mitigation:
+    - 120 test cycles catch hallucinated imports/APIs
+    - Rules engine validates all file operations
+    - Tester agent verifies every claim
+    - Brain cross-references all agent outputs
+    - Static analysis before committing code
+
+RISK 3: Security of Machine Password
+  Impact: Critical
+  Mitigation:
+    - Stored in VS Code SecretStorage (OS keychain)
+    - Never written to disk or logs
+    - Only used for explicit sudo operations
+    - User can revoke at any time
+    - Operations requiring password are logged
+
+RISK 4: Agent Conflicts
+  Impact: Medium
+  Mitigation:
+    - File-level locking
+    - Priority chain
+    - Conflict resolution by Brain
+    - All conflicts logged
+    - Rollback capability
+
+RISK 5: Browser Extension Security
+  Impact: High
+  Mitigation:
+    - Minimal permissions (only active tab when needed)
+    - No data collection
+    - Local-only communication (localhost WebSocket)
+    - Open source for audit
+    - CSP (Content Security Policy) headers
+
+RISK 6: Rate Limiting by LLM Providers
+  Impact: Medium
+  Mitigation:
+    - Request queuing with backoff
+    - Multi-provider fallback
+    - Caching to reduce calls
+    - Batch requests where possible
+
+
+================================================================================
+26. FUTURE ROADMAP
+================================================================================
+
+V1.0 — Core Launch
+  - VS Code extension with multi-agent swarm
+  - Chrome extension with browser control
+  - 8 LLM providers
+  - 120-cycle testing
+  - ai.env management
+
+V1.5 — Enhanced Capabilities
+  - Mobile app development (React Native / Flutter agents)
+  - Database design agent (visual schema designer)
+  - AI-generated documentation site
+  - Project templates (SaaS, E-commerce, Social Media)
+
+V2.0 — Team Collaboration
+  - Multi-user projects
+  - Shared Brain across team members
+  - Role-based access control
+  - Real-time collaborative editing with agents
+
+V2.5 — Marketplace
+  - Custom agent marketplace
+  - Community-contributed agent roles
+  - Plugin system for custom tools
+  - Template marketplace
+
+V3.0 — Enterprise
+  - Self-hosted option
+  - SSO/SAML authentication
+  - Audit logging
+  - Compliance features (SOC2, GDPR)
+  - Custom LLM (fine-tuned models)
+
+V3.5 — Autonomous Maintenance
+  - Agents monitor deployed applications
+  - Auto-fix bugs reported by users
+  - Performance optimization suggestions
+  - Security patch automation
+  - Uptime monitoring and incident response
+
+
+================================================================================
+                        END OF PROJECT PLAN
+================================================================================
+
+  PROJECT:     Jeph2Sworm / Jeph2Code
+  COMPONENTS:  3 (VS Code Extension, Chrome Extension, Python Backend)
+  AGENTS:      7 (PM, Brain, Backend, Frontend, UX, Tester, DevOps)
+  LLM SUPPORT: 8+ providers
+  TEST CYCLES: 120 minimum
+  TIMELINE:    20 weeks to V1.0
+  LICENSE:     TBD (MIT recommended for community adoption)
+
+================================================================================
+  "From idea to production. Automatically."
+================================================================================
