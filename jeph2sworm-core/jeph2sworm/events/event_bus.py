@@ -64,7 +64,7 @@ class EventBus:
 
         await logger.ainfo(
             "event_published",
-            event=event.event.value,
+            event_type=event.event.value,
             source=event.source,
             target=event.target,
         )
@@ -77,7 +77,7 @@ class EventBus:
             except Exception as e:
                 await logger.aerror(
                     "event_handler_error",
-                    event=event.event.value,
+                    event_type=event.event.value,
                     error=str(e),
                 )
 
@@ -88,7 +88,7 @@ class EventBus:
             except Exception as e:
                 await logger.aerror(
                     "global_handler_error",
-                    event=event.event.value,
+                    event_type=event.event.value,
                     error=str(e),
                 )
 

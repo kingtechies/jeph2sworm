@@ -45,7 +45,7 @@ export class Orchestrator {
     this.credentials = new CredentialManager(workspaceRoot);
     this.rules = new RulesEngine(workspaceRoot);
     this.events = eventBus;
-    this.tokenTracker = new TokenTrackerService();
+    this.tokenTracker = new TokenTrackerService(this.ws);
 
     // Forward WebSocket events to local EventBus
     this.ws.on('*', (event: any) => {
@@ -55,7 +55,6 @@ export class Orchestrator {
 
   async activate(): Promise<void> {
     this.ws.connect();
-    this.tokenTracker.activate(this.ws);
   }
 
   async startProject(description: string): Promise<void> {
@@ -87,7 +86,7 @@ export class Orchestrator {
 
   deactivate(): void {
     this.ws.disconnect();
-    this.tokenTracker.deactivate();
+    this.tokenTracker.dispose();
     this.terminals.disposeAll();
     this.events.clear();
     this.disposables.forEach(d => d.dispose());

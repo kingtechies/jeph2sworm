@@ -31,7 +31,7 @@ export class AnthropicProvider extends BaseProvider {
         messages: filtered,
       }),
     });
-    const data = await res.json();
+    const data = await res.json() as any;
     return {
       content: data.content?.[0]?.text ?? '',
       model: chosen,

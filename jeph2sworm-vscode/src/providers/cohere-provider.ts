@@ -22,7 +22,7 @@ export class CohereProvider extends BaseProvider {
       },
       body: JSON.stringify({ model: chosen, messages }),
     });
-    const data = await res.json();
+    const data = await res.json() as any;
     return {
       content: data.message?.content?.[0]?.text ?? '',
       model: chosen,

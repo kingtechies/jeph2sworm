@@ -22,8 +22,8 @@ export abstract class BaseAgent {
     // Listen for status updates from backend
     eventBus.on('agent_status_changed', (event) => {
       if (event.data?.agent === this.role) {
-        this.status = event.data.status;
-        this.currentTask = event.data.current_task;
+        this.status = event.data.status as AgentStatus;
+        this.currentTask = event.data.current_task as string | undefined;
       }
     });
 
@@ -40,12 +40,12 @@ export abstract class BaseAgent {
       status: this.status,
       currentTask: this.currentTask,
       tasksCompleted: this.tasksCompleted,
+      errorsCount: 0,
     };
   }
 
   async sendCommand(command: string, params: Record<string, unknown> = {}): Promise<void> {
-    this.ws.send({
-      type: 'agent_command',
+    this.ws.send('agent_command', {
       agent: this.role,
       command,
       params,

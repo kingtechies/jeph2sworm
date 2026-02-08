@@ -3,7 +3,7 @@
  */
 
 import { TaskStatus, TaskStatusWidget } from './TaskStatus';
-import { ScreenshotPreview, ScreenshotPreviewWidget } from './ScreenshotPreview';
+import { ScreenshotPreviewWidget } from './ScreenshotPreview';
 
 export class SidePanelApp {
   private container: HTMLElement;

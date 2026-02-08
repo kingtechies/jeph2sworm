@@ -121,7 +121,7 @@ export class SwarmClient {
       const res = await fetch(
         `http://${this.host}:${this.port}/api/v1/status`
       );
-      return res.json();
+      return await res.json() as Record<string, unknown>;
     } catch {
       return { running: false, agents: {} };
     }
@@ -132,7 +132,7 @@ export class SwarmClient {
       const res = await fetch(
         `http://${this.host}:${this.port}/api/v1/agents`
       );
-      const data = await res.json();
+      const data = await res.json() as any;
       // Backend returns { agents: { "pm-agent": {...}, ... } } — convert to array
       const agents = data.agents || {};
       return Object.entries(agents).map(([id, info]: [string, any]) => ({
@@ -150,7 +150,7 @@ export class SwarmClient {
       const res = await fetch(
         `http://${this.host}:${this.port}/api/v1/brain/stats`
       );
-      return res.json();
+      return await res.json() as Record<string, unknown>;
     } catch {
       return {};
     }
@@ -161,7 +161,7 @@ export class SwarmClient {
       const res = await fetch(
         `http://${this.host}:${this.port}/api/v1/credentials`
       );
-      const data = await res.json();
+      const data = await res.json() as any;
       return data.credentials || [];
     } catch {
       return [];
@@ -173,7 +173,7 @@ export class SwarmClient {
       const res = await fetch(
         `http://${this.host}:${this.port}/api/v1/tasks`
       );
-      return res.json();
+      return await res.json() as Record<string, unknown>;
     } catch {
       return { task_board: {} };
     }

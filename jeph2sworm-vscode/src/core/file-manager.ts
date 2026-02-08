@@ -32,7 +32,7 @@ export class FileManager {
     // Backup before overwrite
     try {
       await vscode.workspace.fs.stat(uri);
-      await this.backupService.backupFile(filePath);
+      await this.backupService.backup(filePath);
     } catch {
       // File doesn't exist yet — no backup needed
     }
@@ -71,6 +71,6 @@ export class FileManager {
   }
 
   async restoreBackup(filePath: string): Promise<boolean> {
-    return this.backupService.restoreFile(filePath);
+    return this.backupService.restore(filePath);
   }
 }

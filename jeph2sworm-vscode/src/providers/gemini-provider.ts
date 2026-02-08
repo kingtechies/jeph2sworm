@@ -35,7 +35,7 @@ export class GeminiProvider extends BaseProvider {
         }),
       }
     );
-    const data = await res.json();
+    const data = await res.json() as any;
     const candidate = data.candidates?.[0];
     return {
       content: candidate?.content?.parts?.[0]?.text ?? '',

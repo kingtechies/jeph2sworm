@@ -29,10 +29,30 @@ class Brain:
     source of truth for the entire project.
     """
 
+    DEFAULT_SECTIONS = {
+        "project_spec": {},
+        "architecture": {},
+        "task_board": {"backlog": [], "assigned": [], "in_progress": [], "in_review": [], "done": [], "blocked": []},
+        "api_contracts": [],
+        "agent_states": {},
+        "decisions_log": [],
+        "errors_log": [],
+        "test_results": [],
+        "credentials": [],
+        "conversation_history": {"messages": []},
+    }
+
     def __init__(self, brain_dir: Path | str) -> None:
         self.brain_dir = Path(brain_dir) if isinstance(brain_dir, str) else brain_dir
         self._lock = asyncio.Lock()
-        self._cache: dict[str, Any] = {}
+        # Start with default structure so all sections are immediately accessible
+        self._cache: dict[str, Any] = {k: self._deep_copy(v) for k, v in self.DEFAULT_SECTIONS.items()}
+
+    @staticmethod
+    def _deep_copy(obj: Any) -> Any:
+        """Simple deep copy for JSON-serializable objects."""
+        import copy
+        return copy.deepcopy(obj)
 
     # ---- data property for backward compat ----
 
@@ -120,6 +140,7 @@ class Brain:
             },
             "task_board": {
                 "backlog": [],
+                "assigned": [],
                 "in_progress": [],
                 "in_review": [],
                 "done": [],
@@ -142,9 +163,13 @@ class Brain:
 
         for name, data in defaults.items():
             path = self.brain_dir / f"{name}.json"
-            if not path.exists():
+            if path.exists():
+                # Load persisted data from disk
+                self._cache[name] = await self._read_json(path)
+            else:
+                # Write default and cache it
                 await self._write_json(path, data)
-            self._cache[name] = data
+                self._cache[name] = self._deep_copy(data)
 
         await logger.ainfo("brain_initialized", path=str(self.brain_dir))
 
@@ -215,6 +240,11 @@ class Brain:
 
     # ---- Task Board ----
 
+    BOARD_COLUMNS = ("backlog", "assigned", "in_progress", "in_review", "done", "blocked")
+
+    def _empty_board(self) -> dict:
+        return {col: [] for col in self.BOARD_COLUMNS}
+
     async def add_task(
         self,
         task: dict,
@@ -222,21 +252,43 @@ class Brain:
         agent_id: str = "system",
     ) -> None:
         """Add a task to the task board."""
-        board = await self.read("task_board") or {
-            "backlog": [], "in_progress": [], "in_review": [], "done": [], "blocked": []
-        }
-        task.setdefault("id", f"task-{len(board['backlog']) + len(board['in_progress']) + len(board['done']) + 1:03d}")
+        board = await self.read("task_board") or self._empty_board()
+        # Ensure all columns exist (migration from older brain files)
+        for col in self.BOARD_COLUMNS:
+            board.setdefault(col, [])
+        task.setdefault("id", f"task-{len(board['backlog']) + len(board['assigned']) + len(board['in_progress']) + len(board['done']) + 1:03d}")
         task.setdefault("created_at", datetime.now(timezone.utc).isoformat())
         board[status].append(task)
         await self.write("task_board", board, agent_id)
+
+    async def assign_task(
+        self, task_id: str, agent_id: str
+    ) -> None:
+        """Move a task from backlog to assigned for a specific agent."""
+        board = await self.read("task_board") or self._empty_board()
+        for col in self.BOARD_COLUMNS:
+            board.setdefault(col, [])
+        task = None
+        for t in board.get("backlog", []):
+            if t.get("id") == task_id:
+                task = t
+                board["backlog"].remove(t)
+                break
+        if task:
+            task["assigned_to"] = agent_id
+            task["assigned_at"] = datetime.now(timezone.utc).isoformat()
+            board["assigned"].append(task)
+            await self.write("task_board", board, "task-scheduler")
 
     async def move_task(
         self, task_id: str, to_status: str, agent_id: str = "system"
     ) -> None:
         """Move a task between board columns."""
-        board = await self.read("task_board")
+        board = await self.read("task_board") or self._empty_board()
+        for col in self.BOARD_COLUMNS:
+            board.setdefault(col, [])
         task = None
-        for status in ["backlog", "in_progress", "in_review", "done", "blocked"]:
+        for status in self.BOARD_COLUMNS:
             for t in board.get(status, []):
                 if t.get("id") == task_id:
                     task = t

@@ -24,6 +24,8 @@ from jeph2sworm.llm.router import LLMRouter, PROVIDER_MODELS
 from jeph2sworm.security.rules_engine import RulesEngine
 from jeph2sworm.tools.file_system import FileSystem
 from jeph2sworm.tools.terminal import Terminal
+from jeph2sworm.orchestrator.task_scheduler import TaskScheduler
+from jeph2sworm.orchestrator.lifecycle import LifecycleManager
 
 logger = structlog.get_logger()
 
@@ -59,6 +61,8 @@ class SwarmManager:
         self.agents: Dict[str, BaseAgent] = {}
         self._agent_tasks: Dict[str, asyncio.Task] = {}
         self._running = False
+        self.task_scheduler = TaskScheduler(self.brain)
+        self.lifecycle = LifecycleManager()
 
         # Subscribe to events
         event_bus.subscribe(EventType.AGENT_ERROR, self._on_agent_error)
@@ -87,6 +91,7 @@ class SwarmManager:
                 terminal=self.terminal,
             )
             self.agents[agent_id] = agent
+            self.lifecycle.register_agent(agent)
             logger.info(f"Created agent: {agent_id}")
 
         await event_bus.emit(
@@ -105,6 +110,10 @@ class SwarmManager:
         self._running = True
         logger.info("Starting swarm")
 
+        # Start agents via lifecycle manager (includes health monitoring)
+        await self.lifecycle.start_all()
+
+        # Keep individual task handles for cancellation on stop
         for agent_id, agent in self.agents.items():
             task = asyncio.create_task(
                 agent.start(),
@@ -112,6 +121,12 @@ class SwarmManager:
             )
             self._agent_tasks[agent_id] = task
             logger.info(f"Started agent: {agent_id}")
+
+        # Start task scheduler
+        self._scheduler_task = asyncio.create_task(
+            self.task_scheduler.start(),
+            name="task-scheduler",
+        )
 
         await event_bus.emit(
             EventType.SYSTEM_READY,
@@ -127,12 +142,19 @@ class SwarmManager:
         self._running = False
         logger.info("Stopping swarm")
 
-        # Stop all agents
-        for agent_id, agent in self.agents.items():
-            await agent.stop()
-            logger.info(f"Stopped agent: {agent_id}")
+        # Stop task scheduler
+        await self.task_scheduler.stop()
+        if hasattr(self, "_scheduler_task") and not self._scheduler_task.done():
+            self._scheduler_task.cancel()
+            try:
+                await self._scheduler_task
+            except asyncio.CancelledError:
+                pass
 
-        # Cancel running tasks
+        # Stop all agents via lifecycle manager
+        await self.lifecycle.stop_all()
+
+        # Cancel running agent tasks
         for agent_id, task in self._agent_tasks.items():
             if not task.done():
                 task.cancel()
@@ -182,6 +204,8 @@ class SwarmManager:
             "agent_count": len(self.agents),
             "agents": agent_statuses,
             "brain_stats": self.brain.get_stats(),
+            "health": self.lifecycle.get_health(),
+            "queue": self.task_scheduler.get_queue_status(),
         }
 
     def get_agent(self, agent_id: str) -> Optional[BaseAgent]:

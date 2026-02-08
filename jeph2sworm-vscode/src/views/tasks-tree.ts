@@ -31,7 +31,7 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TaskGroupItem 
     if (!this.client.isConnected) return;
     try {
       const data = await this.client.getTasks();
-      this.taskBoard = data.task_board || {};
+      this.taskBoard = (data as any).task_board || {} as Record<string, TaskItem[]>;
     } catch {
       // Ignore
     }

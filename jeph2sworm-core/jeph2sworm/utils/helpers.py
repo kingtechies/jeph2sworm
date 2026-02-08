@@ -154,3 +154,19 @@ def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dic
 def chunk_list(lst: list, chunk_size: int) -> List[list]:
     """Split a list into chunks of chunk_size."""
     return [lst[i : i + chunk_size] for i in range(0, len(lst), chunk_size)]
+
+
+def sanitize_filename(name: str) -> str:
+    """Sanitize a string for use as a filename.
+
+    Removes or replaces characters that are unsafe in file names.
+    """
+    import re
+
+    # Replace path separators and other dangerous chars
+    sanitized = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
+    # Collapse multiple underscores / spaces
+    sanitized = re.sub(r"_{2,}", "_", sanitized)
+    sanitized = sanitized.strip(" ._")
+    # Fallback for empty result
+    return sanitized or "unnamed"
