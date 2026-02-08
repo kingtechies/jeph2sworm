@@ -67,6 +67,51 @@
         "command": "jeph2sworm.showStatus",
         "title": "Show Swarm Status",
         "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.viewAgentActivity",
+        "title": "View Agent Activity",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.viewBrainMemory",
+        "title": "View Brain Memory",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.pauseAgents",
+        "title": "Pause All Agents",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.resumeAgents",
+        "title": "Resume All Agents",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.viewAiEnv",
+        "title": "View ai.env",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.runTests",
+        "title": "Run Full Test Suite",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.deployProject",
+        "title": "Deploy Project",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.exportReport",
+        "title": "Export Project Report",
+        "category": "Jeph2Sworm"
+      },
+      {
+        "command": "jeph2sworm.connectBrowser",
+        "title": "Connect Browser Extension",
+        "category": "Jeph2Sworm"
       }
     ],
     "configuration": {
@@ -86,16 +131,48 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically start the backend server"
+        },
+        "jeph2sworm.apiProvider": {
+          "type": "string",
+          "default": "openai",
+          "enum": ["openai", "anthropic", "xai", "google", "deepseek", "mistral", "together", "cohere"],
+          "description": "Default LLM provider"
+        },
+        "jeph2sworm.autoInstallPackages": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically install required packages"
+        },
+        "jeph2sworm.maxConcurrentAgents": {
+          "type": "number",
+          "default": 6,
+          "description": "Maximum number of concurrent agents"
+        },
+        "jeph2sworm.testCycles": {
+          "type": "number",
+          "default": 120,
+          "description": "Number of test cycles before project is considered done"
+        },
+        "jeph2sworm.browserExtensionPort": {
+          "type": "number",
+          "default": 9222,
+          "description": "Port for Chrome extension communication"
+        },
+        "jeph2sworm.preferredStack": {
+          "type": "string",
+          "default": "auto",
+          "description": "Preferred tech stack (auto-detect or specify, e.g. nextjs, django, rails)"
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run build",
-    "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
-    "watch": "npm run build -- --watch",
+    "vscode:prepublish": "npm run build -- --production",
+    "build": "node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch",
     "lint": "eslint src --ext ts",
-    "package": "vsce package"
+    "package": "vsce package",
+    "build:webview": "cd webview-ui && npm run build"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

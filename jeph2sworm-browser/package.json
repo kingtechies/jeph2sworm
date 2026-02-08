@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "esbuild src/background.ts src/content.ts src/sidepanel.ts --bundle --outdir=dist --format=esm",
-    "watch": "npm run build -- --watch",
+    "build": "npx tsx build.ts",
+    "watch": "npx tsx build.ts --watch",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
     "esbuild": "^0.20.0",
     "eslint": "^8.0.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.0"
   }
 }

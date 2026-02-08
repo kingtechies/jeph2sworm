@@ -5,7 +5,7 @@
 chrome.devtools.panels.create(
   'jeph2sworm',
   '',
-  'devtools/panel.html',
+  'src/devtools/panel.html',
   (panel) => {
     panel.onShown.addListener((window) => {
       // Panel is visible — start monitoring

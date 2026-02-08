@@ -112,7 +112,42 @@ export class SwarmClient {
     return res.json();
   }
 
-  private send(data: Record<string, unknown>): void {
+  async getAgents(): Promise<Array<{ role: string; status: string; current_task?: string }>> {
+    const res = await fetch(
+      `http://${this.host}:${this.port}/api/v1/agents`
+    );
+    return res.json();
+  }
+
+  async getBrainSummary(): Promise<Record<string, unknown>> {
+    const res = await fetch(
+      `http://${this.host}:${this.port}/api/v1/brain/summary`
+    );
+    return res.json();
+  }
+
+  async getCredentials(): Promise<Array<{ key_name: string; purpose: string; value?: string }>> {
+    const res = await fetch(
+      `http://${this.host}:${this.port}/api/v1/credentials`
+    );
+    return res.json();
+  }
+
+  async exportReport(): Promise<Record<string, unknown>> {
+    const [status, brain, agents] = await Promise.all([
+      this.getStatus(),
+      this.getBrainSummary(),
+      this.getAgents(),
+    ]);
+    return {
+      generated_at: new Date().toISOString(),
+      status,
+      brain,
+      agents,
+    };
+  }
+
+  send(data: Record<string, unknown>): void {
     if (this.ws && this.connected) {
       this.ws.send(JSON.stringify(data));
     }
