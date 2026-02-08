@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kingtechies/jeph2sworm/main/assets/banner.png" alt="Jeph2Sworm Banner" width="100%" />
+  <img src="https://raw.githubusercontent.com/kingtechies/jeph2sworm/main/assets/logo.png" alt="Jeph2Sworm Logo" width="200" />
 </p>
 
 <h1 align="center">Jeph2Sworm</h1>
@@ -39,7 +39,7 @@ The system is composed of three tightly integrated components:
 | **Python Backend** | Multi-agent orchestration engine with shared memory, LLM routing, and a rules-based safety layer |
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kingtechies/jeph2sworm/main/assets/architecture.png" alt="Jeph2Sworm Architecture" width="85%" />
+  <img src="https://raw.githubusercontent.com/kingtechies/jeph2sworm/main/assets/logo.png" alt="Jeph2Sworm" width="120" />
 </p>
 
 ---
@@ -71,9 +71,7 @@ Seven specialized AI agents work in parallel, communicating through a shared Bra
 | **Tester / QA** | Writes and runs 120+ test cycles. Tests live in the browser. Produces screenshot and recording evidence |
 | **DevOps Engineer** | Sets up Docker, CI/CD, hosting, environment variables, DNS, SSL, monitoring. Deploys the application |
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/kingtechies/jeph2sworm/main/assets/agents.png" alt="Agent Swarm" width="80%" />
-</p>
+
 
 ---
 
@@ -337,7 +335,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kingtechies/jeph2sworm/main/assets/logo.png" alt="Jeph2Sworm Logo" width="120" />
+  <img src="https://raw.githubusercontent.com/kingtechies/jeph2sworm/main/assets/logo.png" alt="Jeph2Sworm Logo" width="100" />
 </p>
 
 <p align="center">

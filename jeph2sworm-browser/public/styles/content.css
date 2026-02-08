@@ -1,0 +1,86 @@
+/* Jeph2Sworm content script styles */
+
+.j2s-highlight {
+  outline: 2px solid #569cd6 !important;
+  outline-offset: 2px;
+  position: relative;
+}
+
+.j2s-highlight::after {
+  content: attr(data-j2s-label);
+  position: absolute;
+  top: -20px;
+  left: 0;
+  background: #569cd6;
+  color: #fff;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  border-radius: 2px;
+  white-space: nowrap;
+  z-index: 999999;
+  pointer-events: none;
+}
+
+.j2s-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.j2s-recording-indicator {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  background: #f44747;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  z-index: 999999;
+  animation: j2s-pulse 1.5s infinite;
+  pointer-events: none;
+}
+
+@keyframes j2s-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.j2s-tooltip {
+  position: fixed;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  max-width: 300px;
+  z-index: 999999;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.j2s-form-fill-indicator {
+  outline: 2px dashed #4ec9b0 !important;
+  outline-offset: 1px;
+}
+
+.j2s-a11y-issue {
+  outline: 2px solid #dcdcaa !important;
+  outline-offset: 2px;
+}
+
+.j2s-a11y-error {
+  outline: 2px solid #f44747 !important;
+  outline-offset: 2px;
+}

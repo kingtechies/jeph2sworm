@@ -1,0 +1,124 @@
+/**
+ * Global styles for the Jeph2Sworm webview UI.
+ * Uses VS Code CSS variables for theme integration.
+ */
+
+:root {
+  --j2s-spacing-xs: 4px;
+  --j2s-spacing-sm: 8px;
+  --j2s-spacing-md: 12px;
+  --j2s-spacing-lg: 20px;
+  --j2s-spacing-xl: 32px;
+  --j2s-radius-sm: 3px;
+  --j2s-radius-md: 6px;
+  --j2s-radius-lg: 10px;
+  --j2s-agent-pm: #569cd6;
+  --j2s-agent-brain: #c586c0;
+  --j2s-agent-backend: #4ec9b0;
+  --j2s-agent-frontend: #dcdcaa;
+  --j2s-agent-ux: #ce9178;
+  --j2s-agent-tester: #d7ba7d;
+  --j2s-agent-devops: #608b4e;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-editor-foreground);
+  background: var(--vscode-editor-background);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.j2s-btn {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  padding: var(--j2s-spacing-sm) var(--j2s-spacing-md);
+  border-radius: var(--j2s-radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.j2s-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.j2s-btn-secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.j2s-card {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--j2s-radius-md);
+  padding: var(--j2s-spacing-md);
+  margin-bottom: var(--j2s-spacing-md);
+}
+
+.j2s-input {
+  width: 100%;
+  padding: var(--j2s-spacing-sm);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--j2s-radius-sm);
+  font-family: inherit;
+}
+
+.j2s-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.j2s-label {
+  display: block;
+  margin-bottom: var(--j2s-spacing-xs);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.j2s-flex {
+  display: flex;
+  gap: var(--j2s-spacing-sm);
+}
+
+.j2s-flex-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--j2s-spacing-sm);
+}
+
+.j2s-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.j2s-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.j2s-scroll::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 3px;
+}
