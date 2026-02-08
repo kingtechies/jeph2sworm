@@ -2,6 +2,13 @@
 
 All notable changes to the Jeph2Sworm VS Code Extension will be documented in this file.
 
+## [1.0.1] — 2025-01-15
+
+### Changed
+
+- Added author information and portfolio link (jephthahameh.cfd)
+- Updated homepage to author portfolio
+
 ## [1.0.0] — 2025-01-15
 
 ### Added

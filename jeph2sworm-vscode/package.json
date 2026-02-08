@@ -2,8 +2,12 @@
   "name": "jeph2sworm",
   "displayName": "Jeph2Sworm",
   "description": "Autonomous AI Development Swarm - multi-agent system that builds complete applications",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "kingtechies",
+  "author": {
+    "name": "Jephthah Ameh",
+    "url": "https://jephthahameh.cfd"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -14,7 +18,7 @@
   "bugs": {
     "url": "https://github.com/kingtechies/jeph2sworm/issues"
   },
-  "homepage": "https://github.com/kingtechies/jeph2sworm#readme",
+  "homepage": "https://jephthahameh.cfd",
   "license": "MIT",
   "icon": "media/icon.png",
   "galleryBanner": {
